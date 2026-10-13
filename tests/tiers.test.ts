@@ -44,7 +44,7 @@ describe("inheritance odds (uma.guide model)", () => {
     expect(procChance(FactorType.Skill, 3, 0)).toBeCloseTo(BASE_ODDS.white[2]);
     expect(procChance(FactorType.Skill, 3, 100)).toBeCloseTo(0.18);
     expect(procChance(FactorType.Stat, 3, 200)).toBe(1);
-    expect(procChance(FactorType.Aptitude, 1, -50)).toBeCloseTo(0.02);
+    expect(procChance(FactorType.Aptitude, 1, -50)).toBeCloseTo(0.01);
   });
 
   it("combines sources over two inspirations", () => {

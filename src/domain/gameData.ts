@@ -55,9 +55,20 @@ export class GameData {
     return card ? `${card.title} ${card.name}`.trim() : `Card ${cardId}`;
   }
 
+  private relationMemo = new Map<string, number>();
+
   /** Sum of relation points over every relation group containing all given characters. */
   relationSum(charaIds: number[]): number {
     if (charaIds.length === 0) return 0;
+    const key = [...charaIds].sort((a, b) => a - b).join(",");
+    const hit = this.relationMemo.get(key);
+    if (hit !== undefined) return hit;
+    const v = this.computeRelationSum(charaIds);
+    this.relationMemo.set(key, v);
+    return v;
+  }
+
+  private computeRelationSum(charaIds: number[]): number {
     const sets = charaIds.map((id) => new Set(this.relationsByChara.get(id) ?? []));
     let total = 0;
     for (const type of sets[0]) {

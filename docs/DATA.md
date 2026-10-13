@@ -5,7 +5,8 @@ The planner uses two inputs, and they never mix:
 | Input | Where it comes from | Where it lives |
 |---|---|---|
 | **Game data** (characters, cards, skills, sparks, compatibility tables, races, courses) | The game's own `master.mdb`, downloaded from the public Global CDN | `public/data/game-data.json`, committed and served statically |
-| **Race details** (Champions Meeting schedule, course slopes) | [GameTora](https://gametora.com/umamusume)'s public data files | `public/data/race-extras.json`, committed and served statically |
+| **Race details** (Champions Meeting schedule, course layouts) | [GameTora](https://gametora.com/umamusume)'s public data files | `public/data/race-extras.json`, committed and served statically |
+| **Portraits** (card thumbnails) | Downloaded once from GameTora's image server | `public/img/cards/<card_id>.png`, committed and served from this site |
 | **Your roster** (owned veterans) | An export from [UmaExtractor](https://github.com/SaltyGamedev/UmaExtractor-salty) | Your browser only (IndexedDB). It is never uploaded. |
 
 ## Game data pipeline
@@ -29,6 +30,7 @@ pip install -r scripts/ingest/requirements.txt
 python3 scripts/ingest/fetch_master.py /tmp/master.mdb      # prints the resource version
 python3 scripts/ingest/build_data.py /tmp/master.mdb public/data/game-data.json --resource-version <v>
 python3 scripts/ingest/fetch_gametora.py public/data/race-extras.json
+python3 scripts/ingest/fetch_images.py public/data/game-data.json public/img/cards
 ```
 
 ### Tables used
@@ -54,11 +56,11 @@ The factor group to stat/aptitude mapping is checked against the factor names (t
 `scripts/ingest/fetch_gametora.py` reads GameTora's data manifest and keeps only:
 
 * **The Global Champions Meeting schedule:** name, dates, track, distance, surface, ground condition, season and weather. Picking a meeting fills in the race and turns on the CM skill bonus.
-* **Per course:** whether the layout has an uphill and/or a downhill, and the number of corners. Slope conditions use this.
+* **Per course:** whether the layout has an uphill and/or a downhill (used by slope conditions), plus its corner, straight and slope spans (used to draw the course diagram).
 
 The refresh workflow runs it daily. A GameTora outage keeps the previous file. Course ids are the game's `race_course_set` ids, and a test checks that every meeting maps to a course in the game data.
 
-Character portraits are loaded straight from GameTora's image server (`chr_icon_<chara>.png`). They are not copied into this repository. If an image fails, the app shows the coloured initials, and you can switch portraits off in the footer.
+Portraits are downloaded **once** by `scripts/ingest/fetch_images.py`. It fetches only cards without a local file, one request per second, so the daily refresh contacts GameTora only when a new card appears. The site then serves them itself. A missing image falls back to coloured initials.
 
 ## Roster import (UmaExtractor)
 
@@ -71,15 +73,21 @@ The export is the game's `trained_chara_array` written out as JSON. A bare array
 
 A veteran's parents are part of the veteran. You cannot pick them separately, and the optimizer never does.
 
+### Rentals (borrowed parents)
+
+When a parent at position 10/20 has an `owner_viewer_id`, it was a friend's rental. The importer rebuilds it as a borrowable veteran, using that parent's own parents at positions 11/12 or 21/22. A friend offers one rental at a time, so only the most recently seen rental per friend is kept. It may be out of date if the friend has changed it since.
+
+Optionally, the Rentals pop-up can fetch a friend's current rental from [uma.moe](https://uma.moe/api/docs) by trainer ID. This needs your own uma.moe API key, which stays in your browser and is sent only to uma.moe.
+
 The importer warns rather than fails on unknown cards or sparks (newer than the game data), on missing parents, and on duplicates. It rejects a file only when it is not an export or contains no veterans.
 
 ### Privacy
 
-Exports contain your friends' viewer IDs (in borrowed-parent fields). The app never sends your export anywhere. The test fixture in `tests/fixtures/` has those IDs zeroed.
+Exports contain your friends' viewer IDs (in borrowed-parent fields). The app uses them only to group rentals by friend, and never sends your export anywhere. The test fixture in `tests/fixtures/` has those IDs zeroed.
 
 ### `use_type`
 
-Almost every record has `use_type: 0`. Records with another value also carry an `owner_trained_chara_id`. What this means is **not verified**; they look like borrowed or rental entries. They are therefore left out by default, and you can include them with the toggle in the Weights panel.
+Almost every record has `use_type: 0`. Records with another value also carry an `owner_trained_chara_id`. What this means is **not verified**; they look like borrowed or rental entries. They are therefore left out by default.
 
 ## Licences
 
@@ -87,11 +95,11 @@ Almost every record has `use_type: 0`. Records with another value also carry an 
 * `fetch_master.py` is an independent implementation. Its download protocol was learned by reading [UmaTools](https://github.com/daftuyda/UmaTools) (GPL-3.0), but no GPL code was copied.
 * Game data is © Cygames. The JSON holds only the names, numbers and condition strings needed for planning, with no images or audio.
 * `race-extras.json` contains facts (schedule, slope layout) derived from GameTora's data files, with attribution in `meta` and in the app footer. GameTora does not publish a data licence. If they object, remove the file and the planner falls back to "depends on …".
-* Portraits are hotlinked from GameTora, not redistributed.
-* Inheritance odds and the white-spark generation model come from [uma.guide](https://uma.guide/guides/parenting-in-umamusume). The skill tier lists come from a community parenting sheet supplied by the project owner (`src/domain/tiers.ts`).
+* Portraits are game art (© Cygames), downloaded once from GameTora and served from this site so GameTora's servers aren't hit by every visitor.
+* Inheritance odds, the affinity split, the aptitude start boost and the spark generation model follow [uma.guide](https://uma.guide/roster-viewer/) (see `docs/SCORING.md`). The skill tier lists come from a community parenting sheet supplied by the project owner (`src/domain/tiers.ts`).
 
 ## Known gaps
 
 * **Slopes, season and weather:** known for Champions Meetings and for any chosen course (slopes). Otherwise skills that depend on them show "depends on …" and are never ruled out. Whether a slope falls in a particular race phase is not checked.
 * **Distance categories:** ≤1400 m Sprint, ≤1800 m Mile, ≤2400 m Medium, otherwise Long. A course you choose overrides the distance and surface.
-* **Spark effect values** (`succession_factor_effect.value_*`) are not interpreted, because how they map is unclear. Sparks are valued by star count only.
+* **Spark effect values** (`succession_factor_effect.value_*`) are not interpreted. Blue sparks are used only in filters.

@@ -1,9 +1,8 @@
 // Browser persistence. The imported roster is cached in IndexedDB (it can be
-// several MB); settings and saved plans are small and live in localStorage.
+// several MB); settings are small and live in localStorage.
 // Every access is guarded so the app still works with storage disabled.
 
-import type { ImportResult, PlannerConfig, ScoreWeights } from "../domain/types";
-import type { Constraints } from "../domain/optimizer";
+import type { ImportResult } from "../domain/types";
 
 const DB_NAME = "lineageplanner";
 const STORE = "imports";
@@ -46,7 +45,9 @@ export async function saveRoster(result: ImportResult): Promise<boolean> {
 
 export async function loadRoster(): Promise<ImportResult | null> {
   try {
-    return ((await withStore("readonly", (s) => s.get(ROSTER_KEY))) as ImportResult | undefined) ?? null;
+    const r = (await withStore("readonly", (s) => s.get(ROSTER_KEY))) as ImportResult | undefined;
+    // Rosters cached by older versions have no rental pool.
+    return r ? { ...r, borrowed: r.borrowed ?? [] } : null;
   } catch {
     return null;
   }
@@ -87,34 +88,4 @@ export function writeLocal(key: string, value: unknown): void {
   } catch {
     /* quota or privacy mode: settings simply won't persist */
   }
-}
-
-// -------------------------------------------------------------- saved plans
-
-export interface SavedPlan {
-  id: string;
-  name: string;
-  savedAt: string;
-  config: PlannerConfig;
-  weights: ScoreWeights;
-  constraints: Constraints;
-  /** trainedIds of the two chosen veterans */
-  pair: [number, number];
-  /** Score at save time, for reference; it is recomputed when opened. */
-  scoreAtSave: number;
-  dataVersion: string;
-}
-
-export const PLAN_FILE_KIND = "lineageplanner-plan";
-
-export function exportPlanFile(plans: SavedPlan[]): string {
-  return JSON.stringify({ kind: PLAN_FILE_KIND, version: 1, plans }, null, 2);
-}
-
-export function parsePlanFile(text: string): SavedPlan[] {
-  const obj = JSON.parse(text);
-  if (!obj || obj.kind !== PLAN_FILE_KIND || !Array.isArray(obj.plans)) throw new Error("Not a Lineage Planner plan file.");
-  return obj.plans.filter(
-    (p: SavedPlan) => p && typeof p.id === "string" && Array.isArray(p.pair) && p.pair.length === 2 && p.config,
-  );
 }

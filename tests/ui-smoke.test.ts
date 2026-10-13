@@ -1,64 +1,64 @@
-// Renders every view with real game data and the sample roster to catch
-// runtime errors in the UI layer (no DOM needed: server rendering).
+// Renders every view and pop-up with real game data and the sample roster.
 import { createElement as h } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, DEFAULT_WEIGHTS, targetContext } from "../src/domain/config";
-import { NO_CONSTRAINTS, optimize } from "../src/domain/optimizer";
-import { SLOTS } from "../src/domain/nodes";
-import type { PlannerConfig } from "../src/domain/types";
-import { Rankings, ScoreBreakdown, SkillTable } from "../src/ui/Breakdown";
-import { CharacterBrowser, SkillBrowser, VeteranBrowser } from "../src/ui/Browsers";
-import { ConfigPanel } from "../src/ui/ConfigPanel";
-import { DetailDrawer } from "../src/ui/DetailDrawer";
-import { LineageTree } from "../src/ui/Lineage";
-import { PlansView } from "../src/ui/Plans";
+import { DEFAULT_CONFIG, targetContext } from "../src/domain/config";
+import { createPlanContext } from "../src/domain/goals";
+import type { Goal, PlannerConfig } from "../src/domain/types";
+import { FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "../src/ui/pickers";
+import { Planner } from "../src/ui/Planner";
+import { Roster } from "../src/ui/Roster";
 import { TierListView } from "../src/ui/TierList";
 import { realData, sampleVeterans } from "./helpers";
 
-const cfg: PlannerConfig = { ...DEFAULT_CONFIG, targetCardId: 100101, style: "sashi", distance: "middle", surface: "turf" };
 const noop = () => {};
+const cfg: PlannerConfig = { ...DEFAULT_CONFIG, targetCardId: 100101, style: "sashi" };
+const goals: Goal[] = [
+  { kind: "skill", groupId: 20159, priority: 1, sparkTier: "white" },
+  { kind: "aptitude", key: "long", grade: 8, priority: 3 },
+];
 
-describe("UI smoke render", () => {
+describe("UI smoke", () => {
   const data = realData();
-  const veterans = sampleVeterans();
-  const res = optimize(data, veterans, cfg, DEFAULT_WEIGHTS);
-  const ev = res.ranked[0];
-  const focus = { surface: "turf", distance: "middle", style: "sashi" };
+  const vets = sampleVeterans();
 
-  it("renders planner pieces", () => {
-    const html = [
-      renderToString(h(ConfigPanel, { data, config: cfg, onConfig: noop, weights: DEFAULT_WEIGHTS, onWeights: noop, onResetWeights: noop })),
-      renderToString(h(LineageTree, { data, target: res.context.target, ev, weights: DEFAULT_WEIGHTS, focus, selected: "p1", onSelect: noop })),
-      renderToString(h(ScoreBreakdown, { ev })),
-      renderToString(h(SkillTable, { data, ev })),
-      renderToString(h(Rankings, { data, ranked: res.ranked, stats: res.stats, current: ev, onPick: noop })),
-    ].join("");
-    expect(html).toContain(data.charaName(ev.p1.charaId));
+  it("renders the planner with goals and filters", () => {
+    const html = renderToString(
+      h(Planner, {
+        data, own: vets, rentals: [], config: cfg, onConfig: noop, goals, onGoals: noop,
+        filters: [{ color: "blue", groupId: 1, minStars: 1 }], onFilters: noop, excluded: [],
+        apiKey: "", onApiKey: noop, onLookup: async () => {}, onRemoveRental: noop,
+      }),
+    );
+    expect(html).toContain("Inherit");
+    expect(html).toContain("Best pairs");
   });
 
-  it("renders the drawer for every slot", () => {
-    for (const slot of ["target", ...SLOTS]) {
-      const html = renderToString(
-        h(DetailDrawer, { data, sc: res.context, ev, slot, veterans, constraints: NO_CONSTRAINTS, onConstraints: noop, onPair: noop, onClose: noop }),
-      );
-      expect(html.length).toBeGreaterThan(100);
-    }
+  it("renders the planner without a trainee", () => {
+    const html = renderToString(
+      h(Planner, {
+        data, own: vets, rentals: [], config: DEFAULT_CONFIG, onConfig: noop, goals: [], onGoals: noop, filters: [], onFilters: noop,
+        excluded: [], apiKey: "", onApiKey: noop, onLookup: async () => {}, onRemoveRental: noop,
+      }),
+    );
+    expect(html).toContain("Choose a trainee");
   });
 
-  it("renders browsers and plans", () => {
-    renderToString(h(VeteranBrowser, { data, veterans, config: cfg, constraints: NO_CONSTRAINTS, onConstraints: noop }));
-    renderToString(h(SkillBrowser, { data, veterans, ctx: targetContext(cfg, data), style: cfg.style }));
+  it("renders every picker", () => {
+    renderToString(h(TraineePicker, { data, value: 100101, onPick: noop, onClose: noop }));
+    const cm = data.extras.championsMeetings[0];
+    renderToString(h(RacePicker, { data, config: { ...cfg, cmId: cm.id }, onChange: noop, onClose: noop }));
+    const ctx = targetContext(cfg, data);
+    renderToString(h(GoalPicker, { data, pool: vets, style: "sashi", ctx, traineeApt: data.cards.get(100101)!.aptitudes, goals, filters: [], onGoals: noop, onFilters: noop, onClose: noop }));
+    const pc = createPlanContext(data, cfg, goals, []);
+    renderToString(h(VeteranPicker, { data, pc, fixed: vets[1], candidates: vets, excluded: [], current: vets[2], onPick: noop, onClose: noop }));
+    renderToString(h(FriendsPicker, { data, rentals: [], apiKey: "", onApiKey: noop, onLookup: async () => {}, onRemove: noop, onClose: noop }));
+  });
+
+  it("renders the tier list and roster", () => {
     for (const style of ["nige", "senko", "sashi", "oikomi"] as const) {
-      const tl = renderToString(h(TierListView, { data, veterans, style, ctx: targetContext(cfg, data) }));
-      expect(tl).toContain("Tier 0");
+      expect(renderToString(h(TierListView, { data, pool: vets, style, goals, onGoals: noop }))).toContain("Tier 0");
     }
-    renderToString(h(CharacterBrowser, { data, veterans, config: cfg, constraints: NO_CONSTRAINTS, onConstraints: noop, onTarget: noop }));
-    const plan = {
-      id: "p", name: "Plan", savedAt: "2026-10-14T00:00:00Z", config: cfg, weights: DEFAULT_WEIGHTS, constraints: NO_CONSTRAINTS,
-      pair: [ev.p1.trainedId, ev.p2.trainedId] as [number, number], scoreAtSave: ev.total, dataVersion: "x",
-    };
-    const html = renderToString(h(PlansView, { data, veterans, plans: [plan, { ...plan, id: "q", pair: [1, 2] }], onPlans: noop, onOpen: noop }));
-    expect(html).toContain("not in the imported roster");
+    renderToString(h(Roster, { data, own: vets, rentals: [], excluded: [], onExcluded: noop }));
   });
 });

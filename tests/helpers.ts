@@ -37,7 +37,10 @@ export function tinyData(): GameData {
       members: { 10: [1, 2], 20: [1, 2, 3], 30: [2, 3] },
       ranks: [[1, 0, 50], [2, 51, 150], [3, 151, 9999]],
     },
-    saddles: {},
+    saddles: {
+      1: { id: 1, name: "G1 a", type: 3 }, 2: { id: 2, name: "G1 b", type: 3 },
+      3: { id: 3, name: "G3", type: 1 }, 9: { id: 9, name: "G1 c", type: 3 },
+    },
     tracks: {},
     courses: {},
     races: [],

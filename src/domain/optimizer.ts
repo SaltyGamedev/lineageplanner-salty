@@ -1,114 +1,82 @@
-// Ranks pairs of owned veterans for a target. Each veteran brings its two
-// recorded parents with it (they cannot be chosen separately), so the search
-// space is unordered pairs of veterans. With realistic roster sizes this is a
-// few thousand pairs, so every valid pair is scored exactly: no heuristic
-// pruning. Rule-based exclusions are counted and reported.
+// Ranks pairs of veterans for a trainee. Each veteran brings its two recorded
+// parents (they cannot be chosen separately), so the search space is pairs of
+// veterans: every own pair, plus own × one friend's rental when borrowing is on
+// (the game allows one rental per career). Every valid pair is scored exactly.
 
-import { createScoringContext, evaluateLineage, type LineageEvaluation, type ScoringContext } from "./scoring";
+import { createPlanContext, evaluate, type Lineage, type PlanContext } from "./goals";
 import type { GameData } from "./gameData";
-import type { PlannerConfig, ScoreWeights, Veteran } from "./types";
+import type { Goal, PlannerConfig, SparkFilter, Veteran } from "./types";
 
 export interface Constraints {
-  /** Veterans that must appear in every result. At most two. */
-  locked: number[];
   /** Veterans never used. */
   excluded: number[];
-  /** Characters never used as parent. */
-  excludedCharas: number[];
 }
 
-export const NO_CONSTRAINTS: Constraints = { locked: [], excluded: [], excludedCharas: [] };
-
-export interface ExclusionStats {
-  candidates: number;
-  pairsEvaluated: number;
-  byReason: Record<string, number>;
-}
+export const NO_CONSTRAINTS: Constraints = { excluded: [] };
 
 export interface OptimizeResult {
-  ranked: LineageEvaluation[];
-  stats: ExclusionStats;
-  context: ScoringContext;
+  ranked: Lineage[];
+  context: PlanContext;
+  /** Pairs scored, and pairs dropped because a spark filter was not met. */
+  pairs: number;
+  filteredOut: number;
 }
 
-/** Why a single veteran cannot be a parent for this target, or null. */
-export function veteranExclusion(v: Veteran, targetChara: number, cfg: PlannerConfig, c: Constraints): string | null {
-  if (c.excluded.includes(v.trainedId)) return "Excluded by you";
-  if (v.charaId != null && c.excludedCharas.includes(v.charaId)) return "Character excluded by you";
-  if (v.charaId === targetChara) return "Same character as the trainee (game rule)";
-  if (v.useType !== 0 && !cfg.includeNonStandardVeterans) return "Non-standard entry (use_type ≠ 0, possibly borrowed)";
-  return null;
+export function usable(v: Veteran, targetChara: number, cfg: PlannerConfig, c: Constraints): boolean {
+  if (c.excluded.includes(v.trainedId)) return false;
+  if (v.charaId === targetChara) return false; // game rule
+  if (v.useType !== 0 && !cfg.includeNonStandardVeterans) return false;
+  return true;
 }
 
-/** Why two otherwise valid veterans cannot be paired, or null. */
-export function pairExclusion(a: Veteran, b: Veteran): string | null {
-  if (a.trainedId === b.trainedId) return "Same veteran twice";
-  if (a.charaId != null && a.charaId === b.charaId) return "Both parents are the same character (game rule)";
-  return null;
+/** Game rules for a pair: two different characters, at most one rental. */
+export function validPair(a: Veteran, b: Veteran): boolean {
+  if (a.trainedId === b.trainedId) return false;
+  if (a.charaId != null && a.charaId === b.charaId) return false;
+  if (a.borrowed && b.borrowed) return false;
+  return true;
+}
+
+/** Best first: filters met, then goal score (or affinity without goals), then affinity. */
+export function compareLineages(x: Lineage, y: Lineage): number {
+  if (x.ok !== y.ok) return x.ok ? -1 : 1;
+  const s = (y.score ?? 0) - (x.score ?? 0);
+  if (Math.abs(s) > 1e-9) return s;
+  return y.compat.total - x.compat.total || x.p1.trainedId - y.p1.trainedId;
 }
 
 export function optimize(
   data: GameData,
-  veterans: Veteran[],
+  own: Veteran[],
+  borrowed: Veteran[],
   config: PlannerConfig,
-  weights: ScoreWeights,
+  goals: Goal[],
+  filters: SparkFilter[],
   constraints: Constraints = NO_CONSTRAINTS,
-  limit = 50,
+  limit = 20,
 ): OptimizeResult {
-  const sc = createScoringContext(data, config, weights);
-  const targetChara = sc.target.charaId;
-  const byReason: Record<string, number> = {};
-  const bump = (r: string) => (byReason[r] = (byReason[r] ?? 0) + 1);
+  const pc = createPlanContext(data, config, goals, filters);
+  const t = pc.target.charaId;
+  const mine = own.filter((v) => usable(v, t, pc.config, constraints));
+  const rentals = config.useBorrow ? borrowed.filter((v) => usable(v, t, pc.config, constraints)) : [];
 
-  const candidates = veterans.filter((v) => {
-    const reason = veteranExclusion(v, targetChara, sc.config, constraints);
-    if (reason && !constraints.locked.includes(v.trainedId)) {
-      bump(reason);
-      return false;
-    }
-    return true;
-  });
-
-  const locked = constraints.locked.filter((id) => candidates.some((v) => v.trainedId === id)).slice(0, 2);
-  const ranked: LineageEvaluation[] = [];
-  let pairsEvaluated = 0;
-  for (let i = 0; i < candidates.length; i++) {
-    for (let j = i + 1; j < candidates.length; j++) {
-      const a = candidates[i];
-      const b = candidates[j];
-      if (locked.length && !locked.every((id) => id === a.trainedId || id === b.trainedId)) continue;
-      const reason = pairExclusion(a, b);
-      if (reason) {
-        bump(reason);
-        continue;
-      }
-      pairsEvaluated++;
-      ranked.push(evaluateLineage(sc, a, b));
-    }
+  const all: Lineage[] = [];
+  const consider = (a: Veteran, b: Veteran) => {
+    if (validPair(a, b)) all.push(evaluate(pc, a, b));
+  };
+  for (let i = 0; i < mine.length; i++) {
+    for (let j = i + 1; j < mine.length; j++) consider(mine[i], mine[j]);
+    for (const r of rentals) consider(mine[i], r);
   }
-  ranked.sort((x, y) => y.total - x.total || y.compat.total - x.compat.total || x.p1.trainedId - y.p1.trainedId);
-  return { ranked: ranked.slice(0, limit), stats: { candidates: candidates.length, pairsEvaluated, byReason }, context: sc };
+  const kept = all.filter((l) => l.ok);
+  const ranked = (kept.length ? kept : all).sort(compareLineages).slice(0, limit);
+  return { ranked, context: pc, pairs: all.length, filteredOut: all.length - kept.length };
 }
 
-/**
- * Alternatives for one parent slot: keep the other parent fixed and rank every
- * other valid veteran in this slot. Because grandparents are fixed to their
- * veteran, this is also how a grandparent is "replaced".
- */
-export function alternativesForSlot(
-  sc: ScoringContext,
-  veterans: Veteran[],
-  fixed: Veteran,
-  replacing: Veteran,
-  constraints: Constraints,
-  limit = 10,
-): LineageEvaluation[] {
-  const out: LineageEvaluation[] = [];
-  for (const v of veterans) {
-    if (v.trainedId === replacing.trainedId) continue;
-    if (veteranExclusion(v, sc.target.charaId, sc.config, constraints)) continue;
-    if (pairExclusion(fixed, v)) continue;
-    out.push(evaluateLineage(sc, fixed, v));
-  }
-  return out.sort((a, b) => b.total - a.total).slice(0, limit);
+/** Every valid partner for a fixed veteran, best first (for picking a parent by hand). */
+export function partnersFor(pc: PlanContext, fixed: Veteran, candidates: Veteran[], constraints: Constraints = NO_CONSTRAINTS): Lineage[] {
+  return candidates
+    .filter((v) => usable(v, pc.target.charaId, pc.config, constraints) && validPair(fixed, v))
+    .map((v) => evaluate(pc, fixed, v))
+    .sort(compareLineages);
 }

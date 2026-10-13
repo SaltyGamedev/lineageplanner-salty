@@ -1,93 +1,76 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { aptitudeLetter } from "../domain/config";
+import { useEffect, useState, type ReactNode } from "react";
 import type { GameData } from "../domain/gameData";
-import type { Quality } from "../domain/nodes";
-import type { Evidence } from "../domain/types";
+import { GRADE_LETTER } from "../domain/goals";
+import { TIERS } from "../domain/tiers";
 
-/** Whether to load character portraits from GameTora (falls back to initials). */
-export const PortraitsContext = createContext(false);
-
-export const portraitUrl = (charaId: number) => `https://gametora.com/images/umamusume/characters/icons/chr_icon_${charaId}.png`;
-
-export function Avatar({ data, charaId, size = 44 }: { data: GameData; charaId: number | null; size?: number }) {
-  const portraits = useContext(PortraitsContext);
+/** Card portrait, self-hosted in public/img/cards (scripts/ingest/fetch_images.py). Falls back to initials. */
+export function Portrait({ data, cardId, size = 44, title }: { data: GameData; cardId: number | null; size?: number; title?: string }) {
   const [failed, setFailed] = useState(false);
-  const chara = charaId != null ? data.charas.get(charaId) : undefined;
-  const name = chara?.name ?? "?";
-  if (portraits && charaId != null && chara && !failed) {
+  const card = cardId != null ? data.cards.get(cardId) : undefined;
+  const chara = card ? data.charas.get(card.charaId) : undefined;
+  const name = title ?? chara?.name ?? "?";
+  useEffect(() => setFailed(false), [cardId]);
+  if (card && !failed) {
     return (
       <img
-        className="avatar avatar-img"
-        src={portraitUrl(charaId)}
+        className="portrait"
+        src={`${import.meta.env.BASE_URL}img/cards/${card.id}.png`}
         width={size}
         height={size}
         alt=""
         title={name}
         loading="lazy"
-        referrerPolicy="no-referrer"
-        style={{ background: chara.color ?? "var(--surface-3)" }}
         onError={() => setFailed(true)}
       />
     );
   }
-  const initials = name
-    .split(/[\s.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const initials = name.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   return (
-    <div
-      className="avatar"
-      style={{ width: size, height: size, fontSize: size * 0.36, background: chara?.color ?? "var(--surface-3)" }}
-      title={name}
-      aria-hidden
-    >
+    <div className="portrait initials" title={name} style={{ width: size, height: size, fontSize: size * 0.36, background: chara?.color ?? "var(--surface-3)" }}>
       {initials}
     </div>
   );
 }
 
-export function AptBadge({ value, label, highlight }: { value: number; label?: string; highlight?: boolean }) {
-  const letter = aptitudeLetter(value);
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
-    <span className={`apt apt-${letter} ${highlight ? "apt-hl" : ""}`} title={label ? `${label}: ${letter}` : letter}>
-      {label && <small>{label}</small>}
-      {letter}
-    </span>
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-label={title}>
+        <div className="modal-head">
+          <h2>{title}</h2>
+          <button className="icon" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>
   );
 }
 
 export function Stars({ n }: { n: number }) {
-  return <span className="stars" aria-label={`${n} stars`}>{"★".repeat(n)}</span>;
+  return <span className="stars">{"★".repeat(Math.max(0, n))}</span>;
 }
 
-const EVIDENCE_TEXT: Record<Evidence, string> = {
-  verified: "Read directly from game data.",
-  approximation: "Game data combined by an interpretation or community formula; not confirmed from game code.",
-  preference: "A weighting choice you can change in the settings.",
-};
-
-export function EvidenceTag({ evidence }: { evidence: Evidence }) {
-  return (
-    <span className={`evidence ev-${evidence}`} title={EVIDENCE_TEXT[evidence]}>
-      {evidence}
-    </span>
-  );
+export function Grade({ value }: { value: number }) {
+  const g = GRADE_LETTER[value] ?? "?";
+  return <span className={`grade grade-${g}`}>{g}</span>;
 }
 
-export function QualityTag({ q }: { q: Quality }) {
-  return <span className={`quality q-${q}`}>{q}</span>;
+export function TierBadge({ tier }: { tier: string | null }) {
+  if (!tier) return null;
+  return <span className={`tier tier-${tier.replace(".", "_")}`} title={TIERS.find((t) => t.tier === tier)?.label}>{tier}</span>;
 }
 
-export function ScoreBar({ value, label }: { value: number | null; label?: string }) {
-  return (
-    <div className="scorebar" title={label}>
-      <div className="scorebar-fill" style={{ width: `${value ?? 0}%` }} />
-      <span>{value == null ? "n/a" : value.toFixed(0)}</span>
-    </div>
-  );
+export const pct = (x: number) => (x >= 0.995 && x < 1 ? ">99%" : `${Math.round(x * 100)}%`);
+
+export function Chance({ value }: { value: number | null }) {
+  if (value == null) return <span className="chance muted">–</span>;
+  const cls = value >= 0.6 ? "hi" : value >= 0.3 ? "mid" : value > 0 ? "lo" : "zero";
+  return <span className={`chance chance-${cls}`}>{pct(value)}</span>;
 }
 
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
@@ -106,8 +89,4 @@ export function Spinner({ label }: { label: string }) {
       <span>{label}</span>
     </div>
   );
-}
-
-export function SparkChip({ color, children, title }: { color: "blue" | "pink" | "green" | "white"; children: ReactNode; title?: string }) {
-  return <span className={`chip chip-${color}`} title={title}>{children}</span>;
 }

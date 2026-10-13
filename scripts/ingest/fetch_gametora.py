@@ -4,8 +4,9 @@
 Writes public/data/race-extras.json with:
   * championsMeetings: the Global Champions Meeting schedule (track, distance,
     surface, ground condition, season, weather) – used to preset the race.
-  * courses: per course id, whether the layout has uphill / downhill sections –
-    used to evaluate `slope` / `*_slope_random` skill conditions.
+  * courses: per course id, whether the layout has uphill / downhill sections
+    (used to evaluate `slope` / `*_slope_random` skill conditions) and the
+    corner / straight / slope spans used to draw the course diagram.
 
 Only facts needed for planning are kept. Source attribution and the URLs of
 the files used are written into `meta`. Standard library only.
@@ -71,6 +72,11 @@ def main() -> None:
                 "up": any(s["slope"] > 0 for s in slopes),
                 "down": any(s["slope"] < 0 for s in slopes),
                 "corners": len(c.get("corners") or []),
+                # Geometry for the course diagram: [start, end] metres; slopes add the gradient (×10000).
+                "length": c.get("length") or c.get("distance"),
+                "cornerSpans": [[k["start"], k["end"]] for k in c.get("corners") or []],
+                "straightSpans": [[k["start"], k["end"]] for k in c.get("straights") or []],
+                "slopeSpans": [[k["start"], k["end"], k["slope"]] for k in slopes],
             }
 
     doc = {

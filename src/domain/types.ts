@@ -134,8 +134,19 @@ export interface LineageMember {
   rank?: number;
 }
 
-/** A trained horse from the player's roster, with its two fixed parents. */
+/** Where a borrowable (friend's rental) veteran came from. */
+export interface BorrowInfo {
+  /** The friend's trainer (viewer) id. Stays in the browser. */
+  trainerId: string;
+  trainerName?: string;
+  source: "export" | "uma.moe";
+  /** When this rental was seen (veteran creation time, or uma.moe update time). */
+  seenAt: string;
+}
+
+/** A trained horse (own, or a friend's rental), with its two fixed parents. */
 export interface Veteran extends LineageMember {
+  /** Own veterans: trained_chara_id. Borrowed veterans: a negative synthetic id. */
   trainedId: number;
   stats: { speed: number; stamina: number; power: number; guts: number; wiz: number };
   aptitudes: Aptitudes;
@@ -148,10 +159,14 @@ export interface Veteran extends LineageMember {
   useType: number;
   /** The veteran's own parents (export positions 10 and 20). They become grandparents. */
   parents: [LineageMember | null, LineageMember | null];
+  /** Set for a friend's rental. */
+  borrowed?: BorrowInfo;
 }
 
 export interface ImportResult {
   veterans: Veteran[];
+  /** Friends' umas you rented before, rebuilt from your veterans' parent records. */
+  borrowed: Veteran[];
   warnings: string[];
   importedAt: string;
   sourceName: string;
@@ -180,25 +195,30 @@ export interface PlannerConfig {
   season: number | null;
   /** 1 sunny, 2 cloudy, 3 rainy, 4 snowy; null = not specified. */
   weather: number | null;
+  /** Allow one friend's rental as a parent. */
+  useBorrow: boolean;
   includeNonStandardVeterans: boolean;
 }
 
-export interface ScoreWeights {
-  compatibility: number;
-  skills: number;
-  aptitudeSparks: number;
-  statSparks: number;
-  stat: { speed: number; stamina: number; power: number; guts: number; wiz: number };
-  /** Value of an aptitude spark when the target already has A or better there. */
-  aptitudeAlreadyA: number;
-  /** Value of a skill whose conditions don't constrain the target (generic skill). */
-  genericSkill: number;
-  /** Value skills by the community tier list for the running style. */
-  tierList: boolean;
-  /** With the tier list on: value of a usable skill that is not on it, relative to a race-specific match. */
-  untieredSkill: number;
-  /** Multiplier for skills that specifically target the selected Champions Meeting's race. */
-  cmBonus: number;
+export type Priority = 1 | 3;
+
+/** What the user wants this lineage to pass on. */
+export type Goal =
+  /** A skill hint (white, or a unique skill's inherited version). groupId = skill group. */
+  | { kind: "skill"; groupId: number; priority: Priority; sparkTier: "white" | "double" | "gold" }
+  /** A race spark. groupId = factor group. */
+  | { kind: "race"; groupId: number; priority: Priority }
+  /** Reach an aptitude grade (7 = A, 8 = S) in surface/distance/style. */
+  | { kind: "aptitude"; key: AptitudeKeyT; grade: number; priority: Priority };
+
+export type AptitudeKeyT = keyof Aptitudes;
+
+/** Minimum total ★ of one spark across the six inherited horses (hard requirement). */
+export interface SparkFilter {
+  color: "blue" | "pink" | "green";
+  /** Factor group (blue 1–5, pink 11–34, green = the unique skill's factor group). */
+  groupId: number;
+  minStars: number;
 }
 
 export type Evidence = "verified" | "approximation" | "preference";

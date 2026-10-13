@@ -7,6 +7,7 @@ import type { Aptitudes, ImportResult, LineageMember, Veteran } from "./types";
 
 /** succession_chara_array positions: 10/20 are the veteran's parents; 11,12,21,22 their parents. */
 export const PARENT_POSITIONS = [10, 20] as const;
+const GRANDPARENT_POSITIONS: Record<number, [number, number]> = { 10: [11, 12], 20: [21, 22] };
 
 type Json = Record<string, unknown>;
 
@@ -67,6 +68,7 @@ export function parseExport(input: unknown, data: GameData, sourceName = "export
   const unknownCards = new Set<number>();
   const unknownFactors = new Set<number>();
   const seen = new Set<number>();
+  const rentals = new Map<string, Veteran>();
 
   list.forEach((entry, idx) => {
     if (!entry || typeof entry !== "object") {
@@ -100,6 +102,39 @@ export function parseExport(input: unknown, data: GameData, sourceName = "export
       for (const f of m.factorIds) if (!data.factors.has(f)) unknownFactors.add(f);
     }
 
+    // A parent with an owner_viewer_id was a friend's rental: keep it (with its own parents) as borrowable.
+    for (const pos of PARENT_POSITIONS) {
+      const raw = parentsRaw.find((x) => x && num(x.position_id) === pos);
+      const owner = raw ? num(raw.owner_viewer_id) : null;
+      if (!raw || !owner) continue;
+      const m = member(raw, data);
+      const key = `${owner}:${m.cardId}:${[...m.factorIds].sort().join(",")}`;
+      const seenAt = typeof r.create_time === "string" ? r.create_time : "";
+      const prev = rentals.get(key);
+      if (prev) {
+        if (seenAt > prev.createdAt) prev.createdAt = prev.borrowed!.seenAt = seenAt;
+        continue;
+      }
+      const gps = GRANDPARENT_POSITIONS[pos].map((gp) => {
+        const g = parentsRaw.find((x) => x && num(x.position_id) === gp);
+        return g ? member(g, data) : null;
+      }) as [LineageMember | null, LineageMember | null];
+      rentals.set(key, {
+        ...m,
+        trainedId: -(rentals.size + 1),
+        stats: { speed: 0, stamina: 0, power: 0, guts: 0, wiz: 0 },
+        aptitudes: aptitudes({}),
+        skillIds: [],
+        rankScore: 0,
+        runningStyle: 0,
+        createdAt: seenAt,
+        isLocked: false,
+        useType: 0,
+        parents: gps,
+        borrowed: { trainerId: String(owner), source: "export", seenAt },
+      });
+    }
+
     const skillIds = Array.isArray(r.skill_array)
       ? (r.skill_array as Json[]).map((s) => num(s?.skill_id)).filter((x): x is number => x !== null)
       : [];
@@ -131,5 +166,11 @@ export function parseExport(input: unknown, data: GameData, sourceName = "export
     warnings.push(`Sparks not in the current game data are ignored in scoring: ${[...unknownFactors].join(", ")}.`);
   if (veterans.length === 0) throw new ImportError("No usable veterans found in this file.");
 
-  return { veterans, warnings, importedAt: new Date().toISOString(), sourceName };
+  // A friend offers one rental at a time: keep the most recently seen one per trainer.
+  const latest = new Map<string, Veteran>();
+  for (const v of rentals.values()) {
+    const prev = latest.get(v.borrowed!.trainerId);
+    if (!prev || v.createdAt > prev.createdAt) latest.set(v.borrowed!.trainerId, v);
+  }
+  return { veterans, borrowed: [...latest.values()], warnings, importedAt: new Date().toISOString(), sourceName };
 }

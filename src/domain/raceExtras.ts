@@ -27,6 +27,11 @@ export interface CourseExtras {
   up: boolean;
   down: boolean;
   corners: number;
+  length?: number;
+  cornerSpans?: [number, number][];
+  straightSpans?: [number, number][];
+  /** [start, end, gradient × 10000] */
+  slopeSpans?: [number, number, number][];
 }
 
 export interface RaceExtras {

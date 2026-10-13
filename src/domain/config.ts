@@ -1,6 +1,6 @@
 import type { TargetContext } from "./conditions";
 import type { GameData } from "./gameData";
-import type { DistanceCategory, PlannerConfig, ScoreWeights, StyleKey, Surface } from "./types";
+import type { DistanceCategory, PlannerConfig, StyleKey, Surface } from "./types";
 
 export const STYLES: { key: StyleKey; id: number; label: string }[] = [
   { key: "nige", id: 1, label: "Front Runner" },
@@ -54,20 +54,8 @@ export const DEFAULT_CONFIG: PlannerConfig = {
   cmId: null,
   season: null,
   weather: null,
+  useBorrow: true,
   includeNonStandardVeterans: false,
-};
-
-export const DEFAULT_WEIGHTS: ScoreWeights = {
-  compatibility: 20,
-  skills: 40,
-  aptitudeSparks: 25,
-  statSparks: 15,
-  stat: { speed: 1, stamina: 1, power: 1, guts: 0.5, wiz: 0.8 },
-  aptitudeAlreadyA: 0.3,
-  genericSkill: 0.5,
-  tierList: true,
-  untieredSkill: 0.4,
-  cmBonus: 1.5,
 };
 
 /** Resolve the effective race description, letting a chosen course override manual fields. */
