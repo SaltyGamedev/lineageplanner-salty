@@ -15,8 +15,9 @@
 import { lineageCompat } from "./compatibility";
 import type { GameData } from "./gameData";
 import { planRaces, RACE_PLANS, type ScheduledRace } from "./loop";
+import { usable, validPair, type Constraints } from "./optimizer";
 import { ACTIVE_RULES } from "./rules";
-import type { Card, Veteran } from "./types";
+import type { Card, PlannerConfig, Veteran } from "./types";
 
 const RULES = ACTIVE_RULES.independentTraining;
 
@@ -164,4 +165,49 @@ export function bestGroups(data: GameData, loopCards: number[], { size = 4, race
     out.push(planGroup(data, group, raceCost));
   }
   return out.sort((a, b) => b.affinity - a.affinity).slice(0, limit);
+}
+
+/** A run you can start now: a group member trained from two of your veterans of the other members. */
+export interface StartRun {
+  trainee: Card;
+  p1: Veteran;
+  p2: Veteran;
+  /** Lineage affinity of this run, with the veterans' real parents and G1 wins. */
+  affinity: number;
+  /** Grandparents that are other loop umas too (4 once the loop is going). */
+  inLoop: number;
+}
+
+/**
+ * The best runs to start the group with the veterans you have: any member as
+ * the trainee, parents among your veterans (and rentals) of the other members,
+ * scored with their real parents and wins. Her own race plan in the group
+ * makes her a parent the next runs share G1s with.
+ */
+export function startRuns(
+  group: LoopGroup,
+  data: GameData,
+  own: Veteran[],
+  rentals: Veteran[],
+  config: PlannerConfig,
+  constraints: Constraints,
+  limit = 5,
+): StartRun[] {
+  const charas = new Set(group.members.map((m) => m.card.charaId));
+  const out: StartRun[] = [];
+  for (const { card: t } of group.members) {
+    const ok = (v: Veteran) => v.charaId != null && charas.has(v.charaId) && usable(v, t.charaId, config, constraints);
+    const mine = own.filter(ok);
+    const rent = config.useBorrow ? rentals.filter(ok) : [];
+    const consider = (p1: Veteran, p2: Veteran) => {
+      if (!validPair(p1, p2)) return;
+      const inLoop = [...p1.parents, ...p2.parents].filter((g) => g?.charaId != null && g.charaId !== t.charaId && charas.has(g.charaId)).length;
+      out.push({ trainee: t, p1, p2, affinity: lineageCompat(data, t.charaId, p1, p2).total, inLoop });
+    };
+    for (let i = 0; i < mine.length; i++) {
+      for (let j = i + 1; j < mine.length; j++) consider(mine[i], mine[j]);
+      for (const r of rent) consider(mine[i], r);
+    }
+  }
+  return out.sort((a, b) => b.affinity - a.affinity || b.inLoop - a.inLoop).slice(0, limit);
 }

@@ -20,7 +20,7 @@ import {
   type RacePlan,
   type ScheduledRace,
 } from "../domain/loop";
-import { bestGroups, type LoopGroup } from "../domain/loopGroup";
+import { bestGroups, startRuns, type LoopGroup } from "../domain/loopGroup";
 import { resolveTierList } from "../domain/tiers";
 import type { Goal, PlannerConfig, SparkFilter, Veteran } from "../domain/types";
 import { Empty, Grade, Modal, Portrait, Spinner, TierBadge, pct, pctFine } from "./common";
@@ -58,16 +58,28 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
   const [selected, setSelected] = useState(0);
   const skillGoals = goals.filter((g) => g.kind !== "aptitude");
   const first = loopCards.length ? data.cards.get(loopCards[0]) : undefined;
+  const raceCost = RACE_PLANS.find((p) => p.key === plan)!.cost;
+  const [groups, setGroups] = useState<LoopGroup[] | null>(null);
+  const [groupBusy, setGroupBusy] = useState(false);
+  const charas = new Set(loopCards.map((id) => data.cards.get(id)?.charaId)).size;
 
   const run = () => {
     setBusy(true);
     setResult(null);
     // Let the spinner paint before the (about a second) search.
     setTimeout(() => {
-      const cost = RACE_PLANS.find((p) => p.key === plan)!.cost;
-      setResult(optimizeLoop(data, loopCards, own, rentals, config, skillGoals, { excluded }, { limit: 20, raceCost: cost, objective }));
+      setResult(optimizeLoop(data, loopCards, own, rentals, config, skillGoals, { excluded }, { limit: 20, raceCost, objective }));
       setSelected(0);
       setBusy(false);
+    }, 30);
+  };
+
+  const runGroups = () => {
+    setGroupBusy(true);
+    setGroups(null);
+    setTimeout(() => {
+      setGroups(bestGroups(data, loopCards, { size: 4, raceCost, limit: 10 }));
+      setGroupBusy(false);
     }, 30);
   };
 
@@ -75,6 +87,7 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
   const removeCard = (id: number) => {
     onLoopCards(loopCards.filter((x) => x !== id));
     setResult(null);
+    setGroups(null);
   };
 
   return (
@@ -131,7 +144,26 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
               Affinity
             </button>
           </div>
-          <button className="primary" onClick={run} disabled={busy || loopCards.length === 0 || (objective === "loop" && skillGoals.length === 0)}>Find best loop</button>
+          <button
+            className="primary"
+            onClick={run}
+            disabled={busy || loopCards.length === 0 || (objective === "loop" && skillGoals.length === 0)}
+            title="Your next run only: which loop uma to train now and which pair of your veterans to use, ranked by the goals and affinity above, with her race plan."
+          >
+            Find best loop
+          </button>
+          <button
+            className="primary"
+            onClick={runGroups}
+            disabled={groupBusy || charas < 4}
+            title={
+              "The long-term plan: the best four loop umas to train in rotation forever, all running one shared race plan so every horse in every lineage shares the same G1s. " +
+              "Ranked by affinity once the loop is going, with the best run to start it from your veterans now. Ignores the goals and the Rank by setting." +
+              (charas < 4 ? " Needs four different umas." : "")
+            }
+          >
+            Find best 4-uma loop
+          </button>
         </div>
       </section>
 
@@ -144,7 +176,8 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
         </>
       )}
 
-      <GroupSection data={data} loopCards={loopCards} raceCost={RACE_PLANS.find((p) => p.key === plan)!.cost} />
+      {groupBusy && <Spinner label="Planning every group of four…" />}
+      {groups && <GroupSection key={groups.map((x) => x.members.map((m) => m.card.id).join(":")).join("/")} data={data} groups={groups} own={own} rentals={rentals} config={config} excluded={excluded} />}
 
       {picking && (
         <TraineePicker
@@ -154,6 +187,7 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
           onPick={(id) => {
             if (!loopCards.includes(id)) onLoopCards([...loopCards, id]);
             setResult(null);
+            setGroups(null);
             setPicking(false);
           }}
         />
@@ -448,34 +482,26 @@ function ScheduleCalendar({ races, sharedLabel = "of her parents" }: { races: Sc
  * The fixed 4-uma loop: the same four umas trained in rotation, all running
  * one shared race plan, so every horse of every lineage shares the same G1s.
  */
-function GroupSection({ data, loopCards, raceCost }: { data: GameData; loopCards: number[]; raceCost: number }) {
-  const [groups, setGroups] = useState<LoopGroup[] | null>(null);
-  const [busy, setBusy] = useState(false);
+function GroupSection({ data, groups, own, rentals, config, excluded }: {
+  data: GameData;
+  groups: LoopGroup[];
+  own: Veteran[];
+  rentals: Veteran[];
+  config: PlannerConfig;
+  excluded: number[];
+}) {
   const [selected, setSelected] = useState(0);
-  const run = () => {
-    setBusy(true);
-    setGroups(null);
-    setTimeout(() => {
-      setGroups(bestGroups(data, loopCards, { size: 4, raceCost, limit: 10 }));
-      setSelected(0);
-      setBusy(false);
-    }, 30);
-  };
-  const g = groups?.[selected];
+  const g = groups[selected];
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Fixed 4-uma loop</h2>
-        <button className="primary small-btn" onClick={run} disabled={busy || new Set(loopCards.map((id) => data.cards.get(id)?.charaId)).size < 4}>
-          Find best 4-uma loop
-        </button>
       </div>
       <p className="muted small">
         Train the same four umas in rotation, all running the same G1s. Four is the smallest loop where every parent and grandparent is another loop uma (with three,
         two grandparents are the trainee herself and add nothing), and a G1 they all win counts for every pair in the lineage: +15 affinity per run. Pick umas
         with dirt and distance aptitudes that cover many G1s, or with a green skill you want.
       </p>
-      {busy && <Spinner label="Planning every group of four…" />}
       {groups && !groups.length && <p className="muted small">Add at least four different umas.</p>}
       {groups && groups.length > 0 && (
         <>
@@ -504,10 +530,66 @@ function GroupSection({ data, loopCards, raceCost }: { data: GameData; loopCards
               </li>
             ))}
           </ol>
+          {g && <StartNow data={data} g={g} own={own} rentals={rentals} config={config} excluded={excluded} />}
           {g && <GroupDetail g={g} />}
         </>
       )}
     </section>
+  );
+}
+
+/** The best runs to start the selected group with the veterans you have now. */
+function StartNow({ data, g, own, rentals, config, excluded }: { data: GameData; g: LoopGroup; own: Veteran[]; rentals: Veteran[]; config: PlannerConfig; excluded: number[] }) {
+  const runs = useMemo(() => startRuns(g, data, own, rentals, config, { excluded }), [g, data, own, rentals, config, excluded]);
+  const steady = (t: number) => g.runs.find((r) => r.trainee.id === t);
+  return (
+    <div className="group-detail">
+      <h3 className="loop-sub">Start now with your veterans</h3>
+      {runs.length === 0 ? (
+        <p className="muted small">
+          You have no pair of veterans of two of these umas yet{config.useBorrow ? "" : " (try turning on the rental)"}. Train any two of them first; they become
+          the parents of the third.
+        </p>
+      ) : (
+        <>
+          <p className="muted small">
+            Train her from these two, then race her shared plan below: she becomes a parent the next runs share G1s with. Grandparents from outside the loop
+            only cost this run; the loop fills in as you go.
+          </p>
+          <table className="goal-table loop-table">
+            <thead>
+              <tr>
+                <th>Train</th>
+                <th>Parents (their parents)</th>
+                <th className="num" title="Grandparents that are other loop umas (4 once the loop is going)">In loop</th>
+                <th className="num" title="Lineage affinity of this run, with your veterans' real parents and G1 wins">Affinity now</th>
+                <th className="num" title="Mean affinity of her run once the loop is going">Later</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r) => (
+                <tr key={`${r.trainee.id}:${r.p1.trainedId}:${r.p2.trainedId}`}>
+                  <td><b>{r.trainee.name}</b></td>
+                  <td>
+                    {[r.p1, r.p2].map((p, k) => (
+                      <span key={p.trainedId}>
+                        {k > 0 && " × "}
+                        {data.charaName(p.charaId)}
+                        {p.borrowed && <span className="muted small"> (rental)</span>}{" "}
+                        <span className="muted small">({p.parents.map((x) => (x ? data.charaName(x.charaId) : "—")).join(", ")})</span>
+                      </span>
+                    ))}
+                  </td>
+                  <td className="num">{r.inLoop}/4</td>
+                  <td className="num"><b>{r.affinity}</b></td>
+                  <td className="num muted">{Math.round(steady(r.trainee.id)?.total ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }
 

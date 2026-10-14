@@ -130,4 +130,27 @@ describe("fixed 4-uma loops", () => {
       expect([r.parents[0].charaId, r.parents[1].charaId, r.fourth!.charaId]).not.toContain(r.trainee.charaId);
     }
   });
+
+  it("suggests runs to start a group from the veterans you have", async () => {
+    const { planGroup, startRuns } = await import("../src/domain/loopGroup");
+    const d = realData();
+    const vets = sampleVeterans();
+    // A group of four characters you own veterans of.
+    const cards: number[] = [];
+    for (const v of vets) {
+      const c = d.cards.get(v.cardId);
+      if (c && !cards.some((id) => d.cards.get(id)!.charaId === c.charaId)) cards.push(c.id);
+      if (cards.length === 4) break;
+    }
+    const g = planGroup(d, cards.map((id) => d.cards.get(id)!), 3);
+    const runs = startRuns(g, d, vets, [], DEFAULT_CONFIG, { excluded: [] });
+    expect(runs.length).toBeGreaterThan(0);
+    const charas = new Set(g.members.map((m) => m.card.charaId));
+    for (const r of runs) {
+      expect(charas.has(r.p1.charaId!)).toBe(true);
+      expect(charas.has(r.p2.charaId!)).toBe(true);
+      expect([r.p1.charaId, r.p2.charaId]).not.toContain(r.trainee.charaId);
+    }
+    expect(runs[0].affinity).toBeGreaterThanOrEqual(runs[runs.length - 1].affinity);
+  });
 });
