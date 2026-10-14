@@ -280,11 +280,10 @@ export function VeteranPicker({ data, pc, fixed, candidates, excluded, current, 
               <div className="vet-main">
                 <div className="vet-title">
                   <b>{card?.title ? `${card.title} ` : ""}{data.charaName(v.charaId)}</b>
-                  <Rating rank={v.rank} />
+                  <Rating rank={v.rank} score={v.rankScore} />
                   {v.borrowed && <em className="badge rental" title={`Rental from ${v.borrowed.trainerName ?? v.borrowed.trainerId}`}>rental</em>}
                 </div>
                 <div className="vet-meta muted small">
-                  {v.rankScore > 0 && <span>Score {v.rankScore.toLocaleString()}</span>}
                   <span className="vet-own" title="Its own affinity in this lineage (as uma.guide shows it)">Affinity {l.compat.parents[1].own}</span>
                   {v.createdAt && <span>{v.createdAt.slice(0, 10)}</span>}
                   <span className="vet-gps" title="Its parents (they come with it)">

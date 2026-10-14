@@ -63,11 +63,17 @@ export function rankLabel(rank: number): string {
   return letter ? `U${letter}${i % 10 || ""}` : "?";
 }
 
-export function Rating({ rank }: { rank?: number }) {
+/** The rating badge, with the rating number next to it when it is known (the export only has it for veterans, not their parents). */
+export function Rating({ rank, score }: { rank?: number; score?: number }) {
   if (rank == null || rank < 1) return null;
   const label = rankLabel(rank);
   const tier = rank >= 19 ? "u" : rank >= 15 ? "s" : rank >= 13 ? "a" : "low";
-  return <span className={`rating rating-${tier}`} title={`Rating ${label}`}>{label}</span>;
+  return (
+    <span className="rating-wrap" title={`Rating ${label}${score ? ` · ${score.toLocaleString()}` : ""}`}>
+      <span className={`rating rating-${tier}`}>{label}</span>
+      {score ? <span className="rating-score">{score.toLocaleString()}</span> : null}
+    </span>
+  );
 }
 
 export function Stars({ n }: { n: number }) {

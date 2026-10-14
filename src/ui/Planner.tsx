@@ -338,7 +338,7 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
                   >
                     {l.compat.parents[slot === "p1" ? 0 : 1].own}
                   </span>
-                  <Rating rank={m.rank} />
+                  <Rating rank={m.rank} score={v?.rankScore} />
                 </>
               ) : (
                 <>

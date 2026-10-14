@@ -229,6 +229,8 @@ input, select { background: var(--surface); }
 .node-name { font-weight: 600; font-size: 13px; text-align: center; }
 .node.gp .node-name { font-size: 12px; }
 .node-meta { display: flex; gap: 6px; align-items: center; }
+.rating-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.rating-score { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rating { font-size: 10.5px; font-weight: 800; border-radius: 6px; padding: 0 5px; color: #fff; background: #8a93a6; letter-spacing: .02em; }
 .rating-a { background: #e0742b; }
 .rating-s { background: #d4a017; }
