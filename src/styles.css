@@ -246,8 +246,11 @@ input, select { background: var(--surface); }
 .rank-no { width: 18px; color: var(--muted); font-size: 12px; text-align: right; }
 .rank-names { flex: 1; font-size: 12.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-names .badge { margin-left: 5px; }
-.rank-score { font-weight: 700; min-width: 38px; text-align: right; }
-.rank-aff { min-width: 30px; text-align: right; font-size: 12px; }
+.rank-score { font-weight: 700; min-width: 44px; text-align: right; }
+.rank-aff { min-width: 58px; text-align: right; font-size: 12px; }
+.rank-head { display: flex; justify-content: flex-end; gap: 6px; padding: 0 6px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.rank-head span:first-child { min-width: 44px; text-align: right; }
+.rank-head span:last-child { min-width: 58px; text-align: right; }
 
 /* ---------------------------------------------------- tier list, roster */
 .tier-group h3 { color: var(--text); text-transform: none; letter-spacing: 0; font-size: 14px; }

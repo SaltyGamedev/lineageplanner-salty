@@ -181,6 +181,10 @@ export function Planner(props: Props) {
               <h2>Best pairs</h2>
               <span className="muted small">{result.pairs} scored{result.filteredOut ? ` · ${result.filteredOut} filtered` : ""}</span>
             </div>
+            <div className="rank-head" aria-hidden>
+              <span title="Average chance to inherit your goals, weighted by priority. Empty when you have no goals.">Goals</span>
+              <span title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
+            </div>
             <ol>
               {result.ranked.map((l, i) => {
                 const on = l.p1.trainedId === current.p1.trainedId && l.p2.trainedId === current.p2.trainedId;
@@ -194,8 +198,8 @@ export function Planner(props: Props) {
                         {data.charaName(l.p1.charaId)} × {data.charaName(l.p2.charaId)}
                         {(l.p1.borrowed || l.p2.borrowed) && <em className="badge rental">rental</em>}
                       </span>
-                      <span className="rank-score">{l.score != null ? `${Math.round(l.score)}%` : ""}</span>
-                      <span className="rank-aff muted">{l.compat.total}</span>
+                      <span className="rank-score" title="Average chance to inherit your goals">{l.score != null ? `${Math.round(l.score)}%` : "–"}</span>
+                      <span className="rank-aff muted" title="Lineage affinity">{RANK_SYMBOL[l.compat.rank]} {l.compat.total}</span>
                     </button>
                   </li>
                 );
