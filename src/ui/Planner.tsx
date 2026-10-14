@@ -9,7 +9,7 @@ import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { rosterSparks } from "../domain/roster";
 import { FactorType, type Goal, type PlannerConfig, type Priority, type SparkFilter, type Veteran } from "../domain/types";
 import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct, pctFine } from "./common";
-import { CourseDiagram, FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
+import { FriendsPicker, GoalPicker, MeetingBanner, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
 
 interface Props {
   data: GameData;
@@ -125,7 +125,7 @@ export function Planner(props: Props) {
               {[eff.season && SEASONS[eff.season], eff.weather && WEATHERS[eff.weather]].filter(Boolean).join(" · ")}
             </span>
           </span>
-          {course && <CourseDiagram layout={data.extras.courses[String(course.id)]} height={26} />}
+          {cm && <MeetingBanner m={cm} height={30} />}
         </button>
         <div className="setup-style">
           <small>Style</small>
@@ -144,7 +144,7 @@ export function Planner(props: Props) {
           </label>
           <button className="link" onClick={() => setOpen("friends")}>{rentals.length} friends</button>
         </div>
-        {!cm && cmNext && meetingStatus(cmNext) !== "past" && (
+        {!cm && cmNext && meetingStatus(cmNext) !== "past" && meetingCourseId(data, cmNext) != null && (
           <button className="link cm-quick" onClick={useCm}>Use {cmNext.name}</button>
         )}
       </section>

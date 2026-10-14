@@ -78,6 +78,21 @@ describe("race details from GameTora", () => {
     expect(evaluateSkill(skill("weather==3"), { weather: 3 }).relevance).toBe("match");
   });
 
+  it("offers the live meeting and the next two, upcoming ones without a Global date", async () => {
+    const { plannableMeetings, meetingStatus } = await import("../src/domain/raceExtras");
+    const d = realData();
+    const live = d.extras.championsMeetings.find((m) => !m.upcoming && m.start != null)!;
+    const during = (live.start as number) + 60;
+    const list = plannableMeetings(d.extras, 2, during);
+    expect(list[0]).toBe(live);
+    expect(meetingStatus(list[0], during)).toBe("live");
+    for (const m of list.slice(1)) {
+      expect(meetingStatus(m, during)).toBe("upcoming");
+      if (m.upcoming) expect(m.start).toBeNull();
+    }
+    expect(list.length).toBeLessThanOrEqual(3);
+  });
+
   it("maps every Champions Meeting to a course in the game data", () => {
     const d = realData();
     expect(d.extras.championsMeetings.length).toBeGreaterThan(0);

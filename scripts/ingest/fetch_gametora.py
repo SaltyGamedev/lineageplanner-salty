@@ -3,7 +3,9 @@
 
 Writes public/data/race-extras.json with:
   * championsMeetings: the Global Champions Meeting schedule (track, distance,
-    surface, ground condition, season, weather) – used to preset the race.
+    surface, ground condition, season, weather) – used to preset the race –
+    plus the next UPCOMING meetings, which Global runs in the JP order. Those are
+    flagged `upcoming` (projected from the JP list, no Global date yet).
   * courses: per course id, whether the layout has uphill / downhill sections
     (used to evaluate `slope` / `*_slope_random` skill conditions) and the
     corner / straight / slope spans used to draw the course diagram.
@@ -24,6 +26,7 @@ from datetime import datetime, timezone
 BASE = "https://gametora.com/data"
 MANIFEST = f"{BASE}/manifests/umamusume.json"
 UA = "lineageplanner-salty data refresh (+https://github.com/SaltyGamedev/lineageplanner-salty)"
+UPCOMING = 2
 
 
 def get_json(url: str):
@@ -44,16 +47,18 @@ def main() -> None:
     out = sys.argv[1]
     manifest = get_json(MANIFEST)
     cm_url = data_url(manifest, "en/events/champions-meeting")
+    jp_url = data_url(manifest, "events/champions-meeting")
     tracks_url = data_url(manifest, "racetracks")
 
-    meetings = []
-    for cm in get_json(cm_url):
+    def meeting(cm: dict, name: str, upcoming: bool) -> dict:
         race = cm.get("race") or {}
-        meetings.append({
+        return {
             "id": cm["id"],
-            "name": cm["name"],
-            "start": cm["start"],
-            "end": cm["end"],
+            "name": name,
+            "start": None if upcoming else cm["start"],
+            "end": None if upcoming else cm["end"],
+            "upcoming": upcoming,
+            "resourceId": cm.get("resource_id"),
             "trackId": race["track"],
             "distance": race["distance"],
             "ground": race["ground"],
@@ -61,8 +66,15 @@ def main() -> None:
             "season": race.get("season"),
             "weather": race.get("weather"),
             "turn": race.get("turn"),
-        })
+        }
+
+    meetings = [meeting(cm, cm["name"], False) for cm in get_json(cm_url)]
     meetings.sort(key=lambda m: m["start"])
+    last = max((m["id"] for m in meetings), default=0)
+    # Global replays the JP meetings in order: the next ids are the next Global meetings.
+    for cm in sorted(get_json(jp_url), key=lambda c: c["id"]):
+        if last < cm["id"] <= last + UPCOMING:
+            meetings.append(meeting(cm, cm.get("name_en") or f"CM {cm['id']}", True))
 
     courses = {}
     for track in get_json(tracks_url):
@@ -83,7 +95,7 @@ def main() -> None:
         "meta": {
             "source": "GameTora (gametora.com) public data files",
             "fetchedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "files": [cm_url, tracks_url],
+            "files": [cm_url, jp_url, tracks_url],
         },
         "championsMeetings": meetings,
         "courses": courses,

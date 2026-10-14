@@ -68,10 +68,10 @@ jobs:
           else cp "$RUNNER_TEMP/race-extras.json" public/data/race-extras.json
           fi
 
-      - name: Portraits for new cards
-        # Only cards without a file in public/img/cards are downloaded (1 request/s).
+      - name: Portraits and CM banners
+        # Only images without a file in public/img are downloaded (1 request/s).
         continue-on-error: true
-        run: python scripts/ingest/fetch_images.py public/data/game-data.json public/img/cards
+        run: python scripts/ingest/fetch_images.py public/data/game-data.json public/data/race-extras.json public/img
 
       - uses: actions/setup-node@v4
         with:

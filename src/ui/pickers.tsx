@@ -5,7 +5,7 @@ import type { GameData } from "../domain/gameData";
 import { APT_LABEL, GRADE_LETTER, factorGroupName, goalKey, skillGroupName, type Lineage, type PlanContext } from "../domain/goals";
 import { GRADE_A, GRADE_S } from "../domain/inheritance";
 import { partnersFor } from "../domain/optimizer";
-import { SEASONS, WEATHERS, meetingCourseId, meetingStatus, type CourseExtras } from "../domain/raceExtras";
+import { SEASONS, WEATHERS, meetingBanner, meetingCourseId, meetingStatus, plannableMeetings, type ChampionsMeeting, type CourseExtras } from "../domain/raceExtras";
 import { rosterSparks, sparkableSkillGroups } from "../domain/roster";
 import { APTITUDE_BY_GROUP, STAT_BY_GROUP, STAT_LABEL } from "../domain/sparks";
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
@@ -68,10 +68,17 @@ export function CourseDiagram({ layout, height = 40 }: { layout: CourseExtras | 
   );
 }
 
+/** The meeting's banner (self-hosted from GameTora); falls back to its name. */
+export function MeetingBanner({ m, height }: { m: ChampionsMeeting; height?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span className="cm-name">{m.name}</span>;
+  return <img className="cm-banner" src={meetingBanner(m)} alt={m.name} title={m.name} style={height ? { height } : undefined} onError={() => setFailed(true)} />;
+}
+
 const TURN: Record<number, string> = { 1: "R", 2: "L", 4: "straight" };
 
 export function RacePicker({ data, config, onChange, onClose }: { data: GameData; config: PlannerConfig; onChange: (c: PlannerConfig) => void; onClose: () => void }) {
-  const meetings = [...data.extras.championsMeetings].reverse();
+  const meetings = plannableMeetings(data.extras);
   const tracks = useMemo(() => {
     const m = new Map<number, number[]>();
     for (const c of data.courses.values()) m.set(c.trackId, [...(m.get(c.trackId) ?? []), c.id]);
@@ -80,7 +87,7 @@ export function RacePicker({ data, config, onChange, onClose }: { data: GameData
   const current = config.courseId != null ? data.courses.get(config.courseId) : undefined;
   const [track, setTrack] = useState<number | null>(current?.trackId ?? null);
   const set = (patch: Partial<PlannerConfig>) => onChange({ ...config, ...patch });
-  const fmt = (t: number) => new Date(t * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const fmt = (t: number) => new Date(t * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <Modal title="Race" onClose={onClose} wide>
@@ -88,13 +95,14 @@ export function RacePicker({ data, config, onChange, onClose }: { data: GameData
         <>
           <h3>Champions Meeting</h3>
           <div className="cm-grid">
-            {meetings.slice(0, 8).map((m) => {
+            {meetings.map((m) => {
               const course = meetingCourseId(data, m);
               const status = meetingStatus(m);
               return (
                 <button
                   key={m.id}
                   className={`cm-cell ${config.cmId === m.id ? "on" : ""}`}
+                  disabled={course == null}
                   onClick={() => {
                     set({
                       cmId: m.id, courseId: course, distanceMeters: m.distance, distance: distanceCategory(m.distance),
@@ -103,11 +111,19 @@ export function RacePicker({ data, config, onChange, onClose }: { data: GameData
                     onClose();
                   }}
                 >
-                  <span className="cm-name">{m.name} {status !== "past" && <em className={`badge ${status}`}>{status}</em>}</span>
-                  <span className="cell-sub">{data.tracks.get(m.trackId)} {m.ground === 2 ? "Dirt" : "Turf"} {m.distance}m · {fmt(m.start)}</span>
-                  <CourseDiagram layout={course != null ? data.extras.courses[String(course)] : undefined} height={28} />
-                  <span className="cell-sub">
-                    {[m.season && SEASONS[m.season], m.weather && WEATHERS[m.weather], GROUND_CONDITIONS.find((g) => g.id === m.groundCondition)?.label].filter(Boolean).join(" · ")}
+                  <MeetingBanner m={m} />
+                  <span className="cm-meta">
+                    <em className={`badge ${status}`}>{status}</em>
+                    {m.upcoming && <b>{m.name}</b>}
+                    <span>{data.tracks.get(m.trackId)} {m.ground === 2 ? "Dirt" : "Turf"} {m.distance}m</span>
+                    <span className="muted">
+                      {[m.season && SEASONS[m.season], m.weather && WEATHERS[m.weather], GROUND_CONDITIONS.find((g) => g.id === m.groundCondition)?.label].filter(Boolean).join(" · ")}
+                    </span>
+                    <span className="muted cm-date">
+                      {m.start != null && m.end != null
+                        ? `${fmt(m.start)} – ${fmt(m.end)}`
+                        : "Date not announced · expected from the JP order"}
+                    </span>
                   </span>
                 </button>
               );

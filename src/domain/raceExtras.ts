@@ -7,9 +7,13 @@ import type { GameData } from "./gameData";
 export interface ChampionsMeeting {
   id: number;
   name: string;
-  /** Unix seconds. */
-  start: number;
-  end: number;
+  /** Unix seconds; null for upcoming meetings without a Global date. */
+  start: number | null;
+  end: number | null;
+  /** Not on the Global schedule yet: projected from the JP order (Global runs the JP meetings in order). */
+  upcoming?: boolean;
+  /** GameTora banner resource id. */
+  resourceId?: number;
   trackId: number;
   distance: number;
   /** 1 = turf, 2 = dirt */
@@ -57,15 +61,27 @@ export function meetingCourseId(data: GameData, cm: ChampionsMeeting): number | 
   return null;
 }
 
-/** The meeting running now, else the next one, else the most recent. */
-export function defaultMeeting(extras: RaceExtras, now = Date.now() / 1000): ChampionsMeeting | null {
-  const list = extras.championsMeetings;
-  return list.find((m) => m.end >= now) ?? list.at(-1) ?? null;
-}
-
 export function meetingStatus(cm: ChampionsMeeting, now = Date.now() / 1000): "live" | "upcoming" | "past" {
+  if (cm.upcoming || cm.start == null || cm.end == null) return "upcoming";
   return now < cm.start ? "upcoming" : now > cm.end ? "past" : "live";
 }
+
+/** The meetings worth planning for: the live one (or the latest one if none is live) and the next upcoming ones. */
+export function plannableMeetings(extras: RaceExtras, upcoming = 2, now = Date.now() / 1000): ChampionsMeeting[] {
+  const list = extras.championsMeetings;
+  const scheduled = list.filter((m) => !m.upcoming && m.start != null);
+  const current = scheduled.find((m) => meetingStatus(m, now) === "live") ?? scheduled.filter((m) => meetingStatus(m, now) === "past").at(-1);
+  const next = list.filter((m) => m !== current && meetingStatus(m, now) === "upcoming").slice(0, upcoming);
+  return [...(current ? [current] : []), ...next];
+}
+
+/** The meeting running now, else the next one, else the most recent. */
+export function defaultMeeting(extras: RaceExtras, now = Date.now() / 1000): ChampionsMeeting | null {
+  return plannableMeetings(extras, 1, now)[0] ?? extras.championsMeetings.at(-1) ?? null;
+}
+
+/** Self-hosted banner (scripts/ingest/fetch_images.py): the JP banner for upcoming meetings. */
+export const meetingBanner = (cm: ChampionsMeeting) => `${import.meta.env.BASE_URL}img/cm/${cm.id}${cm.upcoming ? "-jp" : ""}.png`;
 
 export async function loadRaceExtras(url = `${import.meta.env.BASE_URL}data/race-extras.json`): Promise<RaceExtras> {
   try {

@@ -55,7 +55,9 @@ The factor group to stat/aptitude mapping is checked against the factor names (t
 
 `scripts/ingest/fetch_gametora.py` reads GameTora's data manifest and keeps only:
 
-* **The Global Champions Meeting schedule:** name, dates, track, distance, surface, ground condition, season and weather. Picking a meeting fills in the race and turns on the CM skill bonus.
+* **The Global Champions Meeting schedule:** name, dates, track, distance, surface, ground condition, season and weather. Picking a meeting fills in the race.
+* **The next two meetings:** Global runs the JP meetings in the same order (Global CM 20 matches JP CM 20 exactly), so the next JP entries are added as `upcoming`, with no date, and are labelled "expected from the JP order" in the app. This is a schedule projection, not a game mechanic; nothing JP-only enters the calculations.
+* **Banners:** downloaded once by `fetch_images.py` into `public/img/cm/` (the JP banner, `<id>-jp.png`, for upcoming meetings until Global has its own).
 * **Per course:** whether the layout has an uphill and/or a downhill (used by slope conditions), plus its corner, straight and slope spans (used to draw the course diagram).
 
 The refresh workflow runs it daily. A GameTora outage keeps the previous file. Course ids are the game's `race_course_set` ids, and a test checks that every meeting maps to a course in the game data.
