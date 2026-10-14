@@ -75,8 +75,9 @@ const STEPS: Step[] = [
       <>
         <p>The top row is your trainee, then the two parents, then their four grandparents.</p>
         <ul>
-          <li>The number on each horse is its <b>affinity</b> with the trainee: more affinity, higher spark chances.</li>
-          <li>Chips on a horse are the goal sparks it carries: <span className="mini chip-white">Uma Stan <Stars n={2} /></span></li>
+          <li>The number on each horse is its <b>affinity</b> with the trainee: more affinity, higher spark chances. A parent shows its own part (like uma.guide); hover it to see the full value its sparks roll at.</li>
+          <li>The first chips are the horse's blue, pink and green sparks; the chips below them are the sparks that match your goals.</li>
+          <li>Goal sparks look like <span className="mini chip-white">Uma Stan <Stars n={2} /></span></li>
           <li><b>Change</b> on a parent lets you pick another veteran to pair with the other parent.</li>
           <li>A grandparent can't be changed alone: it belongs to its parent.</li>
         </ul>

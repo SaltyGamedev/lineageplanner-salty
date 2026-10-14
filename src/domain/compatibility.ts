@@ -10,6 +10,9 @@
 //     rel(T,P) + rel(T,P,G1) + rel(T,P,G2) + race(P,G1) + race(P,G2) + rel(P,Q) + race(P,Q)
 //   grandparent G of P:   rel(T,P,G) + race(P,G)
 //   lineage total (◎○△): rel(T,P1) + rel(T,P2) + Σ rel(T,P,G) + rel(P1,P2)
+//                        + Σ race(P,G) + race(P1,P2)
+// uma.guide shows a parent's "own" affinity (without the trio links, which it
+// shows on the grandparents); the parent's sparks still roll at the full value.
 // A horse of the trainee's own character contributes nothing.
 
 import type { GameData } from "./gameData";
@@ -21,8 +24,10 @@ export const G1_WIN_POINTS = 3;
 const G1_SADDLE_TYPE = 3;
 
 export interface ParentAffinity {
-  /** This parent's own affinity (drives its sparks' inheritance chances). */
+  /** Full affinity of this parent: drives its sparks' inheritance chances. */
   affinity: number;
+  /** The part shown on the parent card (affinity without the trio links to its grandparents). */
+  own: number;
   /** Affinity of its two grandparents. */
   grandparents: [number, number];
   rank: number;
@@ -53,8 +58,8 @@ function rel(data: GameData, target: number, ids: (number | null)[], excludeTarg
   return data.relationSum(ids as number[]);
 }
 
-function parentAffinity(data: GameData, target: number, p: Veteran, q: Veteran): { pa: ParentAffinity; trios: number } {
-  if (p.charaId === target) return { pa: { affinity: 0, grandparents: [0, 0], rank: 1 }, trios: 0 };
+function parentAffinity(data: GameData, target: number, p: Veteran, q: Veteran): { pa: ParentAffinity; trios: number; races: number } {
+  if (p.charaId === target) return { pa: { affinity: 0, own: 0, grandparents: [0, 0], rank: 1 }, trios: 0, races: 0 };
   const direct = rel(data, target, [target, p.charaId]);
   const gps = p.parents.map((g) => {
     if (!g || g.charaId === target) return 0;
@@ -63,15 +68,16 @@ function parentAffinity(data: GameData, target: number, p: Veteran, q: Veteran):
   const trios = p.parents.reduce((s, g) => s + (g && g.charaId !== target ? rel(data, target, [target, p.charaId, g.charaId]) : 0), 0);
   const pair = p.charaId !== q.charaId && q.charaId !== target ? rel(data, target, [p.charaId, q.charaId], false) + raceBonus(data, p, q) : 0;
   const affinity = direct + gps[0] + gps[1] + pair;
-  return { pa: { affinity, grandparents: gps, rank: data.relationRank(affinity) }, trios };
+  const races = p.parents.reduce((s, g) => s + (g && g.charaId !== target ? raceBonus(data, p, g) : 0), 0);
+  return { pa: { affinity, own: affinity - trios, grandparents: gps, rank: data.relationRank(affinity) }, trios, races };
 }
 
 export function lineageCompat(data: GameData, target: number, p1: Veteran, p2: Veteran): LineageCompat {
   const a = parentAffinity(data, target, p1, p2);
   const b = parentAffinity(data, target, p2, p1);
   const direct = (p: Veteran) => (p.charaId === target ? 0 : rel(data, target, [target, p.charaId]));
-  const pair = p1.charaId !== p2.charaId ? rel(data, target, [p1.charaId, p2.charaId], false) : 0;
-  const total = direct(p1) + direct(p2) + a.trios + b.trios + pair;
+  const pair = p1.charaId !== p2.charaId ? rel(data, target, [p1.charaId, p2.charaId], false) + raceBonus(data, p1, p2) : 0;
+  const total = direct(p1) + direct(p2) + a.trios + b.trios + pair + a.races + b.races;
   const members = [p1, p2, ...p1.parents, ...p2.parents];
   return {
     total,

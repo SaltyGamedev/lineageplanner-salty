@@ -7,7 +7,7 @@ import { optimize } from "../domain/optimizer";
 import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } from "../domain/raceExtras";
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { rosterSparks } from "../domain/roster";
-import type { Goal, PlannerConfig, Priority, SparkFilter, Veteran } from "../domain/types";
+import { FactorType, type Goal, type PlannerConfig, type Priority, type SparkFilter, type Veteran } from "../domain/types";
 import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct, pctFine } from "./common";
 import { CourseDiagram, FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
 
@@ -251,6 +251,20 @@ export function Planner(props: Props) {
 
 // ------------------------------------------------------------------ tree
 
+/** A horse's blue, pink and green sparks, in that order. */
+function baseSparks(data: GameData, m: { factorIds: number[] }) {
+  const order = { blue: 0, pink: 1, green: 2 } as const;
+  return m.factorIds
+    .map((id) => data.factors.get(id))
+    .flatMap((f) => {
+      if (!f) return [];
+      const color: keyof typeof order | null =
+        f.type === FactorType.Stat ? "blue" : f.type === FactorType.Aptitude ? "pink" : f.type === FactorType.Unique ? "green" : null;
+      return color ? [{ id: f.id, name: f.name, stars: f.stars, color }] : [];
+    })
+    .sort((a, b) => order[a.color] - order[b.color]);
+}
+
 function Tree({ data, target, l, goals, onPick }: { data: GameData; target: number; l: Lineage; goals: GoalResult[]; onPick: (slot: 0 | 1) => void }) {
   const node = (slot: Slot) => {
     const m = l.members[slot];
@@ -264,8 +278,24 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
             <Portrait data={data} cardId={m.cardId} size={isParent ? 56 : 40} />
             <div className="node-name">{data.charaName(m.charaId)}</div>
             <div className="node-meta">
-              <span className="aff" title="This horse's affinity">{l.affinity[slot]}</span>
+              {isParent ? (
+                <span
+                  className="aff"
+                  title={`Own affinity ${l.compat.parents[slot === "p1" ? 0 : 1].own} (as uma.guide shows it). Its sparks roll at ${l.affinity[slot]}, which adds the links with its two grandparents.`}
+                >
+                  {l.compat.parents[slot === "p1" ? 0 : 1].own}
+                </span>
+              ) : (
+                <span className="aff" title="Affinity of this grandparent: its link with the trainee and parent, plus G1 wins shared with the parent.">{l.affinity[slot]}</span>
+              )}
               {v?.borrowed && <em className="badge rental">rental</em>}
+            </div>
+            <div className="node-sparks">
+              {baseSparks(data, m).map((f) => (
+                <span key={f.id} className={`mini chip-${f.color}`} title={`${f.name} ${f.stars}★`}>
+                  {f.name.length > 14 ? f.name.slice(0, 13) + "…" : f.name} <Stars n={f.stars} />
+                </span>
+              ))}
             </div>
             <div className="node-sparks">
               {hits.map(({ g, h }, i) => (

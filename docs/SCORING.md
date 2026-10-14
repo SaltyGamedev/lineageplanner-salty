@@ -31,8 +31,12 @@ parent P (other parent Q, grandparents G1, G2):
 grandparent G of P:
   rel(T,P,G) + race(P,G)
 lineage total (◎○△):
-  rel(T,P1) + rel(T,P2) + Σ rel(T,P,G) + rel(P1,P2)
+  rel(T,P1) + rel(T,P2) + Σ rel(T,P,G) + rel(P1,P2) + Σ race(P,G) + race(P1,P2)
 ```
+
+The tree shows each parent's **own** affinity (the parent formula without its two `rel(T,P,G)` trio links, which appear on the grandparents), as uma.guide does. The parent's sparks still roll at the full value; hover the number to see both.
+
+One known difference from uma.guide: its saddle table has no entry for **Kawasaki Kinen** (a newer dirt G1), so it never counts that race as a shared win. The game data lists it as a G1 saddle, so the planner does count it, giving 3 more per pair that both won it.
 
 `rel(...)` sums the points of every relation group that contains all the listed characters. `race(A,B)` = 3 × the G1 races both horses won. A horse of the trainee's own character adds nothing.
 
