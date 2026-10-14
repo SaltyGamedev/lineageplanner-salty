@@ -19,6 +19,31 @@ export const SLOTS = ["p1", "p2", "p1g1", "p1g2", "p2g1", "p2g2"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 export const SPARK_BASE = { white: 0.2, double: 0.25, gold: 0.4 } as const;
+export type SparkTier = keyof typeof SPARK_BASE;
+
+const versionCache = new WeakMap<GameData, Map<number, SparkTier[]>>();
+
+/**
+ * Versions of a skill your trainee can buy, which only changes its Spark %
+ * (the hint you inherit is always the plain skill): ○ always; ◎ when the group
+ * has a ◎ variant; gold when it has a rarity-2 version.
+ */
+export function skillVersions(data: GameData, groupId: number): SparkTier[] {
+  let perData = versionCache.get(data);
+  if (!perData) {
+    perData = new Map();
+    versionCache.set(data, perData);
+    for (const s of data.skills.values()) {
+      const g = s.groupId || s.id;
+      const list = perData.get(g) ?? ["white"];
+      if (s.rarity === 1 && s.name.endsWith("◎") && !list.includes("double")) list.push("double");
+      if (s.rarity === 2 && !list.includes("gold")) list.push("gold");
+      perData.set(g, list);
+    }
+    for (const [g, list] of perData) perData.set(g, (["white", "double", "gold"] as const).filter((t) => list.includes(t)));
+  }
+  return perData.get(groupId) ?? ["white"];
+}
 
 export interface PlanContext {
   data: GameData;
@@ -211,7 +236,9 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
       const whites = matching.filter((s) => isWhite(s.type));
       const unique = matching.length > 0 && whites.length === 0 && matching.every((s) => s.type === FactorType.Unique);
       color = unique ? "green" : "white";
-      spark = unique ? null : sparkGenerationChance(new Set(whites.map((s) => s.slot)).size, SPARK_BASE[g.sparkTier]);
+      // A saved version the skill doesn't have falls back to the plain one.
+      const tier = skillVersions(data, g.groupId).includes(g.sparkTier) ? g.sparkTier : "white";
+      spark = unique ? null : sparkGenerationChance(new Set(whites.map((s) => s.slot)).size, SPARK_BASE[tier]);
     }
     return { goal: g, key: goalKey(g), label, color, inherit, spark, hits };
   });

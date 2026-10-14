@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { STYLES, distanceCategory, effectiveConfig, targetContext } from "../domain/config";
 import { RANK_SYMBOL } from "../domain/compatibility";
 import type { GameData } from "../domain/gameData";
-import { SLOTS, evaluate, filterLabel, goalKey, goalLabel, type GoalResult, type Lineage, type Slot } from "../domain/goals";
+import { SLOTS, evaluate, goalKey, skillVersions, type GoalResult, type Lineage, type Slot, type SparkTier } from "../domain/goals";
 import { optimize } from "../domain/optimizer";
 import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } from "../domain/raceExtras";
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
@@ -31,7 +31,6 @@ interface Props {
 type Open = null | "trainee" | "race" | "goals" | "friends" | { slot: 0 | 1 };
 
 const TIER_LABEL = { white: "○", double: "◎", gold: "G" } as const;
-const NEXT_TIER = { white: "double", double: "gold", gold: "white" } as const;
 
 export function Planner(props: Props) {
   const { data, own, rentals, config, onConfig, goals, onGoals, filters, onFilters, excluded } = props;
@@ -143,30 +142,6 @@ export function Planner(props: Props) {
         )}
       </section>
 
-      {/* ---------------------------------------------------------- goals */}
-      <section className="goals-bar">
-        {goals.map((g) => {
-          const key = goalKey(g);
-          return (
-            <span key={key} className={`goal-chip goal-${g.kind} ${g.priority === 3 ? "prio" : ""}`}>
-              {goalLabel(data, g)}
-              {g.kind === "skill" && (
-                <button className="tier-btn" title="Version your trainee buys (for Spark %): ○ / ◎ / gold" onClick={() => updateGoal(key, { sparkTier: NEXT_TIER[g.sparkTier] })}>
-                  {TIER_LABEL[g.sparkTier]}
-                </button>
-              )}
-            </span>
-          );
-        })}
-        {filters.map((f) => (
-          <span key={`${f.color}:${f.groupId}`} className={`goal-chip filter chip-${f.color}`}>
-            {filterLabel(data, f)}
-          </span>
-        ))}
-        <button className="primary small-btn" onClick={() => setOpen("goals")} disabled={!target}>+ Goal</button>
-        {goals.length === 0 && target && <button className="link" onClick={suggest}>Suggest from tier list</button>}
-      </section>
-
       {/* --------------------------------------------------------- result */}
       {!target ? (
         <Empty title="Choose a trainee">
@@ -182,7 +157,11 @@ export function Planner(props: Props) {
                 {current.score != null ? <span className="total">{Math.round(current.score)}%</span> : null}
                 <span className={`compat r${current.compat.rank}`}>{RANK_SYMBOL[current.compat.rank]} {current.compat.total}</span>
               </h2>
-              {manual && <button className="link" onClick={() => setManual(null)}>Back to best</button>}
+              <div className="head-actions">
+                {manual && <button className="link" onClick={() => setManual(null)}>Back to best</button>}
+                {goals.length === 0 && <button className="link" onClick={suggest}>Suggest from tier list</button>}
+                <button className="primary small-btn" onClick={() => setOpen("goals")}>+ Goal</button>
+              </div>
             </div>
             {!current.ok && <p className="warn small">Doesn't meet the spark filters: no pair does.</p>}
             <Tree data={data} target={target.id} l={current} goals={current.goals} onPick={(slot) => setOpen({ slot })} />
@@ -191,6 +170,7 @@ export function Planner(props: Props) {
               l={current}
               style={eff.style}
               onPriority={(key, priority) => updateGoal(key, { priority })}
+              onTier={(key, sparkTier) => updateGoal(key, { sparkTier })}
               onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
               onRemoveFilter={(f) => onFilters(filters.filter((x) => !(x.color === f.color && x.groupId === f.groupId)))}
             />
@@ -315,6 +295,7 @@ interface GoalTableProps {
   l: Lineage;
   style: PlannerConfig["style"];
   onPriority: (key: string, priority: Priority) => void;
+  onTier: (key: string, tier: SparkTier) => void;
   onRemoveGoal: (key: string) => void;
   onRemoveFilter: (f: SparkFilter) => void;
 }
@@ -323,7 +304,7 @@ type SortKey = "tier" | "inherit" | "spark" | "stars";
 
 const starTotal = (r: GoalResult) => r.hits.reduce((a, h) => a + h.stars, 0);
 
-function GoalTable({ data, l, style, onPriority, onRemoveGoal, onRemoveFilter }: GoalTableProps) {
+function GoalTable({ data, l, style, onPriority, onTier, onRemoveGoal, onRemoveFilter }: GoalTableProps) {
   const tiers = resolveTierList(data, style);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
   const tierOf = (r: GoalResult) => (r.goal.kind === "skill" ? (tiers.byGroup.get(r.goal.groupId)?.tier ?? null) : null);
@@ -357,7 +338,7 @@ function GoalTable({ data, l, style, onPriority, onRemoveGoal, onRemoveFilter }:
     </th>
   );
 
-  if (!l.goals.length && !l.filters.length) return <p className="muted small">Add goals to rank pairs by them; until then pairs are ranked by affinity.</p>;
+  if (!l.goals.length && !l.filters.length) return <p className="muted small">No goals yet: pairs are ranked by affinity. Add goals to rank by what they pass on.</p>;
   return (
     <table className="goal-table">
       <thead>
@@ -386,7 +367,23 @@ function GoalTable({ data, l, style, onPriority, onRemoveGoal, onRemoveFilter }:
               )}
             </td>
             <td className="num"><Chance value={r.inherit} /></td>
-            <td className="num"><Chance value={r.spark} /></td>
+            <td className="num">
+              <Chance value={r.spark} />
+              {r.goal.kind === "skill" && r.spark != null && (() => {
+                const versions = skillVersions(data, r.goal.groupId);
+                if (versions.length < 2) return null;
+                const goal = r.goal;
+                const cur = versions.includes(goal.sparkTier) ? goal.sparkTier : "white";
+                const next = versions[(versions.indexOf(cur) + 1) % versions.length];
+                return (
+                  <button
+                    className="ver-btn"
+                    title={`Version your trainee buys: ${TIER_LABEL[cur]}. Only changes Spark % (click for ${TIER_LABEL[next]})`}
+                    onClick={() => onTier(r.key, next)}
+                  >{TIER_LABEL[cur]}</button>
+                );
+              })()}
+            </td>
             <td className="from">
               <div className="from-cells">
                 {r.hits.map((h, i) => (

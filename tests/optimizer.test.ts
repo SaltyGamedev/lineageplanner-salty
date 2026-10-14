@@ -119,3 +119,14 @@ describe("aptitude model", () => {
 });
 
 export type { Veteran };
+
+describe("skill versions", () => {
+  it("only offers ◎ and gold where the skill has them", async () => {
+    const { skillVersions } = await import("../src/domain/goals");
+    const d = realData();
+    expect(skillVersions(d, 20001)).toEqual(["white", "double", "gold"]); // Right-Handed ◎ and Demon
+    expect(skillVersions(d, 20159)).toEqual(["white", "gold"]); // Uma Stan → Superstan
+    expect(skillVersions(d, 21010)).toEqual(["white"]); // Racing Spirit: Stamina
+    expect(skillVersions(d, 999999)).toEqual(["white"]);
+  });
+});
