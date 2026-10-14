@@ -198,10 +198,11 @@ input, select { background: var(--surface); }
 .switch input:checked { background: var(--green); }
 .switch input:checked::after { left: 16px; }
 .cm-quick { align-self: center; font-size: 13px; }
+.ver-btn.placeholder { visibility: hidden; display: inline-block; border: 1px solid transparent; }
 .head-actions { display: flex; align-items: center; gap: 12px; }
 .ver-btn { margin-left: 6px; padding: 0 6px; font-size: 11px; font-weight: 700; color: var(--accent); border-radius: 5px; line-height: 1.5; }
 .small-btn { padding: 4px 12px; border-radius: 999px; }
-.result-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 14px; align-items: start; }
+.result-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(380px, 1fr); gap: 14px; align-items: start; }
 .total { font-size: 22px; font-weight: 800; color: var(--accent); }
 .compat { font-weight: 700; font-size: 14px; color: var(--muted); }
 .compat.r3 { color: var(--ok); } .compat.r2 { color: var(--accent); }
@@ -222,7 +223,7 @@ input, select { background: var(--surface); }
 .goal-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .goal-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .goal-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.goal-table .num { text-align: right; width: 64px; }
+.goal-table .num { text-align: right; width: 64px; white-space: nowrap; }
 /* The goal name column hugs its content so the ★ column gets the rest and stays on one row. */
 .goal-table th:first-child, .goal-table td:first-child { width: 1%; white-space: nowrap; }
 .sort-btn { background: none; border: none; padding: 0; font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit; display: inline-flex; gap: 3px; align-items: center; cursor: pointer; }
@@ -241,19 +242,6 @@ input, select { background: var(--surface); }
 .from-cells { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .from-cells > span { display: inline-flex; align-items: center; gap: 2px; }
 
-.ranking ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
-.ranking li button { width: 100%; display: flex; align-items: center; gap: 6px; background: none; border-color: transparent; text-align: left; padding: 6px; }
-.ranking li button:hover { background: var(--surface-2); }
-.ranking li button.on { background: var(--accent-soft); color: inherit; }
-.rank-no { width: 18px; color: var(--muted); font-size: 12px; text-align: right; }
-.rank-names { flex: 1; font-size: 12.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-names .badge { margin-left: 5px; }
-.rank-hits { font-weight: 700; min-width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
-.rank-all { min-width: 46px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
-.rank-aff { min-width: 58px; text-align: right; font-size: 12px; }
-.rank-head { display: flex; justify-content: flex-end; gap: 6px; padding: 0 6px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-.rank-head .rh-hits, .rank-head .rh-all { min-width: 46px; text-align: right; }
-.rank-head .rh-aff { min-width: 58px; text-align: right; }
 
 /* ---------------------------------------------------- tier list, roster */
 .tier-group h3 { color: var(--text); text-transform: none; letter-spacing: 0; font-size: 14px; }
@@ -307,3 +295,23 @@ input, select { background: var(--surface); }
 .stat b.compat { font-size: 18px; }
 .order-seg { margin-bottom: 10px; }
 .g1 { font-size: 10.5px; color: var(--muted); }
+
+/* Best pairs: header and rows share one grid so the columns line up. */
+.ranking ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.rank-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 52px 44px 56px; align-items: center; gap: 8px; width: 100%; padding: 6px; }
+.rank-row .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ranking li button.rank-row { background: none; border-color: transparent; text-align: left; }
+.ranking li button.rank-row:hover { background: var(--surface-2); }
+.ranking li button.rank-row.on { background: var(--accent-soft); color: inherit; }
+.rank-head { padding-top: 0; padding-bottom: 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.rank-no { color: var(--muted); font-size: 12px; text-align: right; }
+.rank-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; min-width: 0; }
+.rank-parent { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rank-ava { position: relative; flex-shrink: 0; }
+.rank-ava.rental::after { content: "R"; position: absolute; right: -3px; bottom: -3px; font-size: 9px; font-weight: 800; line-height: 1; padding: 2px 3px; border-radius: 4px; background: var(--green); color: #fff; }
+.rank-pname { display: flex; flex-direction: column; min-width: 0; font-size: 12.5px; line-height: 1.25; }
+.rank-cname { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rank-gps { display: flex; gap: 2px; margin-top: 2px; }
+.rank-hits { font-weight: 700; }
+.rank-all { font-size: 12px; }
+.rank-aff { font-size: 12px; color: var(--muted); }

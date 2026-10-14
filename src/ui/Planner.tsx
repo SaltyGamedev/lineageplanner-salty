@@ -37,6 +37,9 @@ export function Planner(props: Props) {
   const [open, setOpen] = useState<Open>(null);
   const [manual, setManual] = useState<[number, number] | null>(null);
   const [order, setOrder] = useState<RankOrder>("hits");
+  // "Most goals" sorts by priority-weighted hits; show that same number so the column reads in order.
+  const totalWeight = goals.reduce((a, g) => a + g.priority, 0);
+  const weighted = goals.some((g) => g.priority !== 1);
   const target = config.targetCardId != null ? data.cards.get(config.targetCardId) : undefined;
   const eff = effectiveConfig(config, data);
   const course = eff.courseId != null ? data.courses.get(eff.courseId) : undefined;
@@ -184,27 +187,42 @@ export function Planner(props: Props) {
                 <button key={k} className={order === k ? "on" : ""} title={title} onClick={() => setOrder(k)} disabled={k !== "affinity" && goals.length === 0}>{label}</button>
               ))}
             </div>
-            <div className="rank-head" aria-hidden>
-              <span className="rh-hits" title="Expected number of your goals this pair passes on.">Hits</span>
-              <span className="rh-all" title="Chance that every goal is inherited.">All</span>
-              <span className="rh-aff" title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
+            <div className="rank-row rank-head" aria-hidden>
+              <span />
+              <span>Pair</span>
+              <span className="num" title={weighted ? "Expected goals passed on, weighted: goals marked ! count 3×" : "Expected number of your goals this pair passes on"}>
+                {weighted ? "Score" : "Hits"}
+              </span>
+              <span className="num" title="Chance that every goal is inherited">All</span>
+              <span className="num" title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
             </div>
             <ol>
               {result.ranked.map((l, i) => {
                 const on = l.p1.trainedId === current.p1.trainedId && l.p2.trainedId === current.p2.trainedId;
                 return (
                   <li key={`${l.p1.trainedId}:${l.p2.trainedId}`}>
-                    <button className={on ? "on" : ""} onClick={() => setManual([l.p1.trainedId, l.p2.trainedId])}>
+                    <button className={`rank-row ${on ? "on" : ""}`} onClick={() => setManual([l.p1.trainedId, l.p2.trainedId])}>
                       <span className="rank-no">{i + 1}</span>
-                      <Portrait data={data} cardId={l.p1.cardId} size={30} />
-                      <Portrait data={data} cardId={l.p2.cardId} size={30} />
-                      <span className="rank-names">
-                        {data.charaName(l.p1.charaId)} × {data.charaName(l.p2.charaId)}
-                        {(l.p1.borrowed || l.p2.borrowed) && <em className="badge rental">rental</em>}
+                      <span className="rank-pair">
+                        {[l.p1, l.p2].map((p) => (
+                          <span key={p.trainedId} className="rank-parent" title={parentTitle(data, p)}>
+                            <span className={`rank-ava ${p.borrowed ? "rental" : ""}`}>
+                              <Portrait data={data} cardId={p.cardId} size={28} />
+                            </span>
+                            <span className="rank-pname">
+                              <span className="rank-cname">{data.charaName(p.charaId)}</span>
+                              <span className="rank-gps">
+                                {p.parents.map((g, k) => (g ? <Portrait key={k} data={data} cardId={g.cardId} size={16} /> : null))}
+                              </span>
+                            </span>
+                          </span>
+                        ))}
                       </span>
-                      <span className="rank-hits" title="Expected goals passed on">{l.goals.length ? `${l.expected.toFixed(1)}/${l.goals.length}` : "–"}</span>
-                      <span className="rank-all" title="Chance that every goal is inherited">{l.allInherit != null ? pctFine(l.allInherit) : "–"}</span>
-                      <span className="rank-aff muted" title="Lineage affinity">{RANK_SYMBOL[l.compat.rank]} {l.compat.total}</span>
+                      <span className="num rank-hits" title={weighted ? "Weighted expected goals (! counts 3×)" : "Expected goals passed on"}>
+                        {l.goals.length ? `${((l.score ?? 0) / 100 * totalWeight).toFixed(1)}/${totalWeight}` : "–"}
+                      </span>
+                      <span className="num rank-all" title="Chance that every goal is inherited">{l.allInherit != null ? pctFine(l.allInherit) : "–"}</span>
+                      <span className="num rank-aff" title="Lineage affinity">{RANK_SYMBOL[l.compat.rank]} {l.compat.total}</span>
                     </button>
                   </li>
                 );
@@ -256,6 +274,14 @@ export function Planner(props: Props) {
 }
 
 // ------------------------------------------------------------------ tree
+
+/** Tells apart veterans of the same character: card title, rank score, when it was made, or the friend it comes from. */
+function parentTitle(data: GameData, v: Veteran): string {
+  const card = data.cards.get(v.cardId);
+  const who = v.borrowed ? `Rental from ${v.borrowed.trainerName ?? v.borrowed.trainerId}` : `Rank score ${v.rankScore.toLocaleString()}`;
+  const gps = v.parents.map((g) => (g ? data.charaName(g.charaId) : "?")).join(" + ");
+  return `${data.charaName(v.charaId)} ${card?.title ?? ""}\n${who} · ${v.createdAt.slice(0, 10)}\nParents: ${gps}`;
+}
 
 const g1Names = (data: GameData, ids: number[]) => (ids.length ? ids.map((id) => data.saddles.get(id)?.name ?? id).join(", ") : "none");
 const gpShared = (l: Lineage, slot: Slot) => l.compat.parents[slot.startsWith("p1") ? 0 : 1].sharedG1.grandparents[Number(slot[3]) - 1];
@@ -450,7 +476,8 @@ function GoalTable({ data, l, style, onPriority, onTier, onRemoveGoal, onRemoveF
               <Chance value={r.spark} />
               {r.goal.kind === "skill" && r.spark != null && (() => {
                 const versions = skillVersions(data, r.goal.groupId);
-                if (versions.length < 2) return null;
+                // Keep the % aligned with rows that do have a version button.
+                if (versions.length < 2) return <span className="ver-btn placeholder" aria-hidden>○</span>;
                 const goal = r.goal;
                 const cur = versions.includes(goal.sparkTier) ? goal.sparkTier : "white";
                 const next = versions[(versions.indexOf(cur) + 1) % versions.length];
