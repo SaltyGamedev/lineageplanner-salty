@@ -246,11 +246,12 @@ input, select { background: var(--surface); }
 .rank-no { width: 18px; color: var(--muted); font-size: 12px; text-align: right; }
 .rank-names { flex: 1; font-size: 12.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-names .badge { margin-left: 5px; }
-.rank-score { font-weight: 700; min-width: 44px; text-align: right; }
+.rank-hits { font-weight: 700; min-width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+.rank-all { min-width: 46px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
 .rank-aff { min-width: 58px; text-align: right; font-size: 12px; }
 .rank-head { display: flex; justify-content: flex-end; gap: 6px; padding: 0 6px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-.rank-head span:first-child { min-width: 44px; text-align: right; }
-.rank-head span:last-child { min-width: 58px; text-align: right; }
+.rank-head .rh-hits, .rank-head .rh-all { min-width: 46px; text-align: right; }
+.rank-head .rh-aff { min-width: 58px; text-align: right; }
 
 /* ---------------------------------------------------- tier list, roster */
 .tier-group h3 { color: var(--text); text-transform: none; letter-spacing: 0; font-size: 14px; }
@@ -295,3 +296,10 @@ input, select { background: var(--surface); }
 .dot-btn { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: none; background: var(--surface-3); }
 .dot-btn.on { background: var(--accent); width: 18px; border-radius: 4px; }
 .guide-nav { display: flex; align-items: center; justify-content: space-between; }
+
+.summary { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.stat { display: flex; flex-direction: column; line-height: 1.15; }
+.stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat b small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.stat > span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+.stat b.compat { font-size: 18px; }

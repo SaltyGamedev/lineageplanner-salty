@@ -67,6 +67,14 @@ export function TierBadge({ tier }: { tier: string | null }) {
 
 export const pct = (x: number) => (x >= 0.995 && x < 1 ? ">99%" : `${Math.round(x * 100)}%`);
 
+/** Percentage that stays readable for tiny chances (combined odds of many goals). */
+export const pctFine = (x: number) => {
+  const v = x * 100;
+  if (v <= 0) return "0%";
+  if (v < 0.1) return "<0.1%";
+  return v < 10 ? `${v.toFixed(1)}%` : `${Math.round(v)}%`;
+};
+
 export function Chance({ value }: { value: number | null }) {
   if (value == null) return <span className="chance muted">–</span>;
   const cls = value >= 0.6 ? "hi" : value >= 0.3 ? "mid" : value > 0 ? "lo" : "zero";

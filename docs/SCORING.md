@@ -12,8 +12,12 @@ All chances below are **approximations** from the community model used by [uma.g
 ## Goals and filters
 
 * **Goals** are what you want the trainee to get: a skill hint (white or a unique skill's inherited version), a race spark, or an aptitude grade (for example Long S).
-  * Score = priority-weighted mean of the goals' **Inherit** chances, 0–100%. A goal marked **!** counts ×3; aptitude goals start at ×3.
+  * Pairs are ordered by the priority-weighted mean of the goals' **Inherit** chances, which is the same as ordering by the expected number of goals passed on. A goal marked **!** counts ×3; aptitude goals start at ×3.
   * Without goals, pairs are ranked by affinity.
+  * Next to the order, the planner shows combined chances, which are small when you pick many goals. Goals roll independently, so they multiply:
+    * **All inherited** = Π Inherit %.
+    * **All sparks** = Π Spark % over the goals that have one (it assumes the trainee also learns those skills).
+    * **Hits / Expected** = Σ Inherit %, for example 5.2 of 8.
 * **Spark filters** set a minimum total ★ of a blue, pink or green spark across the six inherited horses. Pairs below it are dropped. If no pair passes, the best ones are shown and flagged.
 * The **tier list** (`src/domain/tiers.ts`, from a community parenting sheet) is reference only. It is shown in the pickers, and "Suggest from tier list" adds the top tiers your roster carries.
 

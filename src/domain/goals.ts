@@ -104,8 +104,14 @@ export interface Lineage {
   filters: FilterResult[];
   /** All filters met. */
   ok: boolean;
-  /** Priority-weighted mean of goal chances, 0..100; null without goals. */
+  /** Priority-weighted mean of goal chances, 0..100; null without goals. Only used to order pairs. */
   score: number | null;
+  /** Expected number of goals passed on (sum of Inherit chances). */
+  expected: number;
+  /** Chance that every goal is inherited (goals roll independently); null without goals. */
+  allInherit: number | null;
+  /** Chance that the trainee generates every goal that has a Spark % (if it learns them). */
+  allSpark: { chance: number; goals: number } | null;
 }
 
 export const goalKey = (g: Goal) => (g.kind === "aptitude" ? `apt:${g.key}` : `${g.kind}:${g.groupId}`);
@@ -251,5 +257,11 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
 
   const weight = goals.reduce((a, r) => a + r.goal.priority, 0);
   const score = weight > 0 ? (100 * goals.reduce((a, r) => a + r.goal.priority * r.inherit, 0)) / weight : null;
-  return { p1, p2, members, compat, affinity, goals, filters, ok: filters.every((f) => f.ok), score };
+  const withSpark = goals.filter((r) => r.spark != null);
+  return {
+    p1, p2, members, compat, affinity, goals, filters, ok: filters.every((f) => f.ok), score,
+    expected: goals.reduce((a, r) => a + r.inherit, 0),
+    allInherit: goals.length ? goals.reduce((a, r) => a * r.inherit, 1) : null,
+    allSpark: withSpark.length ? { chance: withSpark.reduce((a, r) => a * (r.spark as number), 1), goals: withSpark.length } : null,
+  };
 }

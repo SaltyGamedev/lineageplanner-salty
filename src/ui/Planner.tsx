@@ -8,7 +8,7 @@ import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } fro
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { rosterSparks } from "../domain/roster";
 import type { Goal, PlannerConfig, Priority, SparkFilter, Veteran } from "../domain/types";
-import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct } from "./common";
+import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct, pctFine } from "./common";
 import { CourseDiagram, FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
 
 interface Props {
@@ -153,10 +153,7 @@ export function Planner(props: Props) {
         <div className="result-grid">
           <section className="panel">
             <div className="panel-head">
-              <h2>
-                {current.score != null ? <span className="total">{Math.round(current.score)}%</span> : null}
-                <span className={`compat r${current.compat.rank}`}>{RANK_SYMBOL[current.compat.rank]} {current.compat.total}</span>
-              </h2>
+              <Summary l={current} />
               <div className="head-actions">
                 {manual && <button className="link" onClick={() => setManual(null)}>Back to best</button>}
                 {goals.length === 0 && <button className="link" onClick={suggest}>Suggest from tier list</button>}
@@ -182,8 +179,9 @@ export function Planner(props: Props) {
               <span className="muted small">{result.pairs} scored{result.filteredOut ? ` · ${result.filteredOut} filtered` : ""}</span>
             </div>
             <div className="rank-head" aria-hidden>
-              <span title="Average chance to inherit your goals, weighted by priority. Empty when you have no goals.">Goals</span>
-              <span title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
+              <span className="rh-hits" title="Expected number of your goals this pair passes on (the list is ordered by this; goals marked ! count more).">Hits</span>
+              <span className="rh-all" title="Chance that every goal is inherited.">All</span>
+              <span className="rh-aff" title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
             </div>
             <ol>
               {result.ranked.map((l, i) => {
@@ -198,7 +196,8 @@ export function Planner(props: Props) {
                         {data.charaName(l.p1.charaId)} × {data.charaName(l.p2.charaId)}
                         {(l.p1.borrowed || l.p2.borrowed) && <em className="badge rental">rental</em>}
                       </span>
-                      <span className="rank-score" title="Average chance to inherit your goals">{l.score != null ? `${Math.round(l.score)}%` : "–"}</span>
+                      <span className="rank-hits" title="Expected goals passed on">{l.goals.length ? `${l.expected.toFixed(1)}/${l.goals.length}` : "–"}</span>
+                      <span className="rank-all" title="Chance that every goal is inherited">{l.allInherit != null ? pctFine(l.allInherit) : "–"}</span>
                       <span className="rank-aff muted" title="Lineage affinity">{RANK_SYMBOL[l.compat.rank]} {l.compat.total}</span>
                     </button>
                   </li>
@@ -307,6 +306,32 @@ interface GoalTableProps {
 type SortKey = "tier" | "inherit" | "spark" | "stars";
 
 const starTotal = (r: GoalResult) => r.hits.reduce((a, h) => a + h.stars, 0);
+
+function Summary({ l }: { l: Lineage }) {
+  const n = l.goals.length;
+  return (
+    <div className="summary">
+      {n > 0 ? (
+        <>
+          <div className="stat" title="Chance that every goal is inherited over the two inspirations (each spark rolls independently).">
+            <b>{pctFine(l.allInherit ?? 0)}</b><span>all inherited</span>
+          </div>
+          <div className="stat" title={l.allSpark ? `Chance that your trainee also generates every spark that has a Spark % (${l.allSpark.goals} of ${n} goals), if it learns them.` : "None of these goals has a Spark %."}>
+            <b>{l.allSpark ? pctFine(l.allSpark.chance) : "–"}</b><span>all sparks</span>
+          </div>
+          <div className="stat" title="Expected number of goals passed on.">
+            <b>{l.expected.toFixed(1)}<small>/{n}</small></b><span>expected</span>
+          </div>
+        </>
+      ) : (
+        <div className="stat"><span className="muted">No goals yet</span></div>
+      )}
+      <div className="stat" title="Affinity of the whole lineage.">
+        <b className={`compat r${l.compat.rank}`}>{RANK_SYMBOL[l.compat.rank]} {l.compat.total}</b><span>affinity</span>
+      </div>
+    </div>
+  );
+}
 
 function GoalTable({ data, l, style, onPriority, onTier, onRemoveGoal, onRemoveFilter }: GoalTableProps) {
   const tiers = resolveTierList(data, style);

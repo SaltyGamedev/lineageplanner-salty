@@ -108,9 +108,15 @@ const STEPS: Step[] = [
     title: "6 · Best pairs",
     body: (
       <>
-        <p>The list on the right ranks every valid pair. Click one to see it in the tree.</p>
+        <p>The list on the right ranks every valid pair. Click one to see it in the tree. The summary above the tree shows:</p>
         <ul>
-          <li><b>Goals %</b>: the average chance to inherit your goals (priority-weighted). Pairs are ordered by it.</li>
+          <li><b>All inherited</b>: the chance every goal is inherited.</li>
+          <li><b>All sparks</b>: the chance your trainee also generates every goal's own spark (goals that have a Spark %).</li>
+          <li><b>Expected</b>: goals passed on on average.</li>
+        </ul>
+        <ul>
+          <li><b>Hits</b>: how many of your goals the pair is expected to pass on, for example 5.1/8. Pairs are ordered by it (goals marked <b>!</b> count more).</li>
+          <li><b>All</b>: the chance that <i>every</i> goal is inherited. With many goals this is small, even for the best pair.</li>
           <li><b>Affinity</b>: the lineage total, with the ◎ ○ △ rank. It breaks ties and drives spark chances.</li>
           <li>Without goals, pairs are simply ordered by affinity.</li>
         </ul>

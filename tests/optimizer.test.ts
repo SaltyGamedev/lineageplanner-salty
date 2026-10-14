@@ -77,6 +77,21 @@ describe("optimizer", () => {
     expect(loose.ranked.every((l) => l.ok)).toBe(true);
   });
 
+  it("combines goal chances: expected hits, all inherited, all sparks", () => {
+    const d = realData();
+    const vets = sampleVeterans();
+    const owned = rosterSparks(d, vets);
+    const skills = [...owned.values()].filter((o) => o.kind === "skill").slice(0, 4);
+    const goals: Goal[] = skills.map((s) => ({ kind: "skill", groupId: s.groupId, priority: 1, sparkTier: "white" }));
+    const l = evaluate(createPlanContext(d, cfg, goals, []), vets[1], vets[2]);
+    const inh = l.goals.map((g) => g.inherit);
+    expect(l.expected).toBeCloseTo(inh.reduce((a, b) => a + b, 0));
+    expect(l.allInherit).toBeCloseTo(inh.reduce((a, b) => a * b, 1));
+    expect(l.allInherit!).toBeLessThanOrEqual(Math.min(...inh));
+    expect(l.allSpark!.goals).toBe(l.goals.filter((g) => g.spark != null).length);
+    expect(evaluate(createPlanContext(d, cfg, [], []), vets[1], vets[2]).allInherit).toBeNull();
+  });
+
   it("evaluates aptitude goals with the pink start boost", () => {
     const d = realData();
     const vets = sampleVeterans();
