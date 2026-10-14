@@ -14,11 +14,13 @@ import {
   optimizeLoop,
   raceGoals,
   slotOfTurn,
+  type LoopObjective,
   type LoopResult,
   type LoopSetup,
   type RacePlan,
   type ScheduledRace,
 } from "../domain/loop";
+import { bestGroups, type LoopGroup } from "../domain/loopGroup";
 import { resolveTierList } from "../domain/tiers";
 import type { Goal, PlannerConfig, SparkFilter, Veteran } from "../domain/types";
 import { Empty, Grade, Modal, Portrait, Spinner, TierBadge, pct, pctFine } from "./common";
@@ -50,6 +52,7 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
   const [picking, setPicking] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [plan, setPlan] = useState<RacePlan>("balanced");
+  const [objective, setObjective] = useState<LoopObjective>("loop");
   const [result, setResult] = useState<LoopResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState(0);
@@ -62,7 +65,7 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
     // Let the spinner paint before the (about a second) search.
     setTimeout(() => {
       const cost = RACE_PLANS.find((p) => p.key === plan)!.cost;
-      setResult(optimizeLoop(data, loopCards, own, rentals, config, skillGoals, { excluded }, { limit: 20, raceCost: cost }));
+      setResult(optimizeLoop(data, loopCards, own, rentals, config, skillGoals, { excluded }, { limit: 20, raceCost: cost, objective }));
       setSelected(0);
       setBusy(false);
     }, 30);
@@ -118,7 +121,17 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
               <button key={p.key} className={plan === p.key ? "on" : ""} title={p.title} onClick={() => setPlan(p.key)}>{p.label}</button>
             ))}
           </div>
-          <button className="primary" onClick={run} disabled={busy || loopCards.length === 0 || skillGoals.length === 0}>Find best loop</button>
+          <div className="seg" role="group" aria-label="Rank by">
+            <button className={objective === "loop" ? "on" : ""} title="Every goal skill in her and both parents first" onClick={() => setObjective("loop")}>Unbroken loop</button>
+            <button
+              className={objective === "affinity" ? "on" : ""}
+              title="Most affinity first: now, as the next parent, and from the G1s she can win (her parents' dirt and distance pink sparks raise her win chances)"
+              onClick={() => setObjective("affinity")}
+            >
+              Affinity
+            </button>
+          </div>
+          <button className="primary" onClick={run} disabled={busy || loopCards.length === 0 || (objective === "loop" && skillGoals.length === 0)}>Find best loop</button>
         </div>
       </section>
 
@@ -130,6 +143,8 @@ export function Loop({ data, own, rentals, config, onConfig, goals, onGoals, fil
           {setup && <SetupDetail data={data} s={setup} />}
         </>
       )}
+
+      <GroupSection data={data} loopCards={loopCards} raceCost={RACE_PLANS.find((p) => p.key === plan)!.cost} />
 
       {picking && (
         <TraineePicker
@@ -174,7 +189,8 @@ export function LoopRanking({ data, result, selected, onSelect }: { data: GameDa
         <span className="num" title="Goals both parents carry">Both</span>
         <span className="num" title="Chance every goal ends up in her and both parents: the loop stays unbroken">Loop</span>
         <span className="num" title="Lineage affinity for this run">Affinity</span>
-        <span className="num" title="Affinity she brings as a parent for the next loop uma, incl. expected shared G1s from the race plan">Next</span>
+        <span className="num" title="Expected affinity from the G1s her parents won that she wins too (race plan)">Races</span>
+        <span className="num" title="Affinity she brings as a parent for the next loop uma (relations with her grandparents-to-be), before races">Next</span>
       </div>
       <ol>
         {result.setups.map((s, i) => (
@@ -199,7 +215,8 @@ export function LoopRanking({ data, result, selected, onSelect }: { data: GameDa
               <span className="num rank-hits">{s.covered}/{s.goals.length}</span>
               <span className="num rank-all">{pctFine(s.unbroken)}</span>
               <span className="num rank-aff">{RANK_SYMBOL[s.lineage.compat.rank]} {s.lineage.compat.total}</span>
-              <span className="num rank-aff">{Math.round(s.nextAffinity + (s.schedule?.expectedAffinity ?? 0))}</span>
+              <span className="num rank-aff">+{Math.round(s.schedule?.expectedAffinity ?? s.potential)}</span>
+              <span className="num rank-aff">{s.nextAffinity}</span>
             </button>
           </li>
         ))}
@@ -300,37 +317,52 @@ export function SetupDetail({ data, s }: { data: GameData; s: LoopSetup }) {
         </h2>
         {s.nextTarget && <span className="muted small">then use her for {s.nextTarget.name}</span>}
       </div>
-      <table className="goal-table loop-table">
-        <thead>
-          <tr>
-            <th>Goal</th>
-            <th className="num">{name(s.lineage.p1)}</th>
-            <th className="num">{name(s.lineage.p2)}</th>
-            <th className="num" title="Chance she gets the skill: her own skill, or inherited from the sparks">Learns</th>
-            <th className="num" title="Chance she generates the spark herself">Spark</th>
-            <th className="num" title="Chance the goal is in her and both parents afterwards">Kept</th>
-          </tr>
-        </thead>
-        <tbody>
-          {s.goals.map((g) => (
-            <tr key={g.key}>
-              <td>{g.label}</td>
-              <td className="num">{g.inP1 ? "✓" : <span className="bad">✗</span>}</td>
-              <td className="num">{g.inP2 ? "✓" : <span className="bad">✗</span>}</td>
-              <td className="num">{g.ownSkill ? <span title="One of her own skills">own</span> : pct(g.learn)}</td>
-              <td className="num">{g.spark == null ? "–" : pct(g.spark)}</td>
-              <td className="num"><b>{pct(g.kept)}</b></td>
+      {s.goals.length > 0 && (
+        <table className="goal-table loop-table">
+          <thead>
+            <tr>
+              <th>Goal</th>
+              <th className="num">{name(s.lineage.p1)}</th>
+              <th className="num">{name(s.lineage.p2)}</th>
+              <th className="num" title="Chance she gets the skill: her own skill, or inherited from the sparks">Learns</th>
+              <th className="num" title="Chance she generates the spark herself">Spark</th>
+              <th className="num" title="Chance the goal is in her and both parents afterwards">Kept</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {s.goals.map((g) => (
+              <tr key={g.key}>
+                <td>{g.label}</td>
+                <td className="num">{g.inP1 ? "✓" : <span className="bad">✗</span>}</td>
+                <td className="num">{g.inP2 ? "✓" : <span className="bad">✗</span>}</td>
+                <td className="num">{g.ownSkill ? <span title="One of her own skills">own</span> : pct(g.learn)}</td>
+                <td className="num">{g.spark == null ? "–" : pct(g.spark)}</td>
+                <td className="num"><b>{pct(g.kept)}</b></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       {sc && (
         <>
           <h3 className="loop-sub">Race plan (Independent Training)</h3>
           <p className="muted small">
             {sc.races.filter((r) => r.goal).length} goal races + {sc.extraRaces} extra G1s · expected shared G1s: {name(s.lineage.p1)} {sc.expectedShared[0].toFixed(1)}, {name(s.lineage.p2)} {sc.expectedShared[1].toFixed(1)} · +{Math.round(sc.expectedAffinity)} affinity.
-            {" "}Win chances use her starting aptitudes (with the pink sparks of this lineage) and uma.guide's table, minus the penalty for racing 3+ times in a row.
+            {" "}Win chances use her expected aptitude each year (below) and uma.guide's table, minus the penalty for racing 3+ times in a row.
           </p>
+          <AptitudeTable s={s} />
+          {s.advice && s.advice.length > 0 && (
+            <p className="small loop-advice">
+              <b>Raise to A for more shared G1s:</b>{" "}
+              {s.advice.slice(0, 3).map((a, i) => (
+                <span key={a.key}>
+                  {i ? " · " : ""}
+                  {APT_NAME[a.key]} A <b>+{Math.round(a.gain)}</b> affinity ({a.races} {APT_NAME[a.key].toLowerCase()} G1s her parents won)
+                </span>
+              ))}
+              . Parents and grandparents with {APT_NAME[s.advice[0].key].toLowerCase()} pink sparks get her there.
+            </p>
+          )}
           <p className="muted small loop-legend">
             <span className="win-key goal" /> goal race <span className="win-key" /> G1 a parent won (+3 affinity each) · % = win chance, orange after 3+ races in a row
           </p>
@@ -342,7 +374,39 @@ export function SetupDetail({ data, s }: { data: GameData; s: LoopSetup }) {
   );
 }
 
-function ScheduleCalendar({ races }: { races: ScheduledRace[] }) {
+const APT_NAME: Record<string, string> = { turf: "Turf", dirt: "Dirt", short: "Sprint", mile: "Mile", middle: "Medium", long: "Long" };
+
+/** Expected surface and distance grades per career year (fractional: rounded letter, exact value on hover). */
+function AptitudeTable({ s }: { s: LoopSetup }) {
+  const keys = ["turf", "dirt", "short", "mile", "middle", "long"] as const;
+  return (
+    <table className="goal-table loop-apt-table">
+      <thead>
+        <tr>
+          <th />
+          {keys.map((k) => <th key={k} className="num">{APT_NAME[k]}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {YEARS.map((year, y) => (
+          <tr key={year}>
+            <td className="muted">{year}</td>
+            {keys.map((k) => {
+              const v = s.aptitudes[y][k];
+              return (
+                <td key={k} className="num" title={`Expected grade ${v.toFixed(2)} (1 = G … 7 = A, 8 = S)`}>
+                  <Grade value={Math.round(v)} />
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ScheduleCalendar({ races, sharedLabel = "of her parents" }: { races: ScheduledRace[]; sharedLabel?: string }) {
   const at = new Map(races.map((r) => [r.turn, r]));
   return (
     <div className="wins-years">
@@ -359,7 +423,7 @@ function ScheduleCalendar({ races }: { races: ScheduledRace[] }) {
                   {r && (
                     <div
                       className={`win ${r.goal ? "win-goal" : r.sharedWith ? "win-shared" : ""} ${r.consecutive >= 3 ? "win-tired" : ""}`}
-                      title={`${r.name}${r.goal ? ` · goal: top ${r.placement}` : ""} · ${pct(r.win)} win${r.consecutive >= 3 ? ` (${r.consecutive} in a row)` : ""}${r.sharedWith ? ` · won by ${r.sharedWith} of her parents: +${3 * r.sharedWith} affinity` : ""}`}
+                      title={`${r.name}${r.goal ? ` · goal: top ${r.placement}` : ""} · ${pct(r.win)} win${r.consecutive >= 3 ? ` (${r.consecutive} in a row)` : ""}${r.sharedWith ? ` · also run by ${r.sharedWith} ${sharedLabel}` : ""}`}
                     >
                       <RaceBanner raceId={r.raceId} name={r.name} />
                     </div>
@@ -374,6 +438,126 @@ function ScheduleCalendar({ races }: { races: ScheduledRace[] }) {
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ fixed loops
+
+/**
+ * The fixed 4-uma loop: the same four umas trained in rotation, all running
+ * one shared race plan, so every horse of every lineage shares the same G1s.
+ */
+function GroupSection({ data, loopCards, raceCost }: { data: GameData; loopCards: number[]; raceCost: number }) {
+  const [groups, setGroups] = useState<LoopGroup[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState(0);
+  const run = () => {
+    setBusy(true);
+    setGroups(null);
+    setTimeout(() => {
+      setGroups(bestGroups(data, loopCards, { size: 4, raceCost, limit: 10 }));
+      setSelected(0);
+      setBusy(false);
+    }, 30);
+  };
+  const g = groups?.[selected];
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2>Fixed 4-uma loop</h2>
+        <button className="primary small-btn" onClick={run} disabled={busy || new Set(loopCards.map((id) => data.cards.get(id)?.charaId)).size < 4}>
+          Find best 4-uma loop
+        </button>
+      </div>
+      <p className="muted small">
+        Train the same four umas in rotation, all running the same G1s. Four is the smallest loop where every parent and grandparent is another loop uma (with three,
+        two grandparents are the trainee herself and add nothing), and a G1 they all win counts for every pair in the lineage: +15 affinity per run. Pick umas
+        with dirt and distance aptitudes that cover many G1s, or with a green skill you want.
+      </p>
+      {busy && <Spinner label="Planning every group of four…" />}
+      {groups && !groups.length && <p className="muted small">Add at least four different umas.</p>}
+      {groups && groups.length > 0 && (
+        <>
+          <div className="rank-row rank-head group-row" aria-hidden>
+            <span />
+            <span>Umas</span>
+            <span className="num" title="Mean lineage affinity per run once the loop is going">Affinity</span>
+            <span className="num" title="From relations between the four umas">Relations</span>
+            <span className="num" title="From shared G1 wins (expected)">Races</span>
+            <span className="num" title="Race affinity gained over the same number of races in schedules that don't line up">vs unaligned</span>
+          </div>
+          <ol className="group-list">
+            {groups.map((x, i) => (
+              <li key={x.members.map((m) => m.card.id).join(":")}>
+                <button className={`rank-row group-row ${i === selected ? "on" : ""}`} onClick={() => setSelected(i)}>
+                  <span className="rank-no">{i + 1}</span>
+                  <span className="rank-pair">
+                    <span className="rank-names">{x.members.map((m) => m.card.name).join(" · ")}</span>
+                    <span className="rank-avas">{x.members.map((m) => <Portrait key={m.card.id} data={data} cardId={m.card.id} size={24} />)}</span>
+                  </span>
+                  <span className="num rank-hits">{Math.round(x.affinity)}</span>
+                  <span className="num rank-aff">{Math.round(x.relations)}</span>
+                  <span className="num rank-aff">{Math.round(x.races)}</span>
+                  <span className="num rank-aff">+{Math.round(x.races - x.independentRaces)}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          {g && <GroupDetail g={g} />}
+        </>
+      )}
+    </section>
+  );
+}
+
+export function GroupDetail({ g }: { g: LoopGroup }) {
+  const [who, setWho] = useState(0);
+  const m = g.members[Math.min(who, g.members.length - 1)];
+  // Mark each race with how many of the other three plan it too.
+  const races = m.races.map((r) => ({ ...r, sharedWith: g.members.filter((o) => o !== m && r.saddleId != null && o.wins.has(r.saddleId)).length }));
+  return (
+    <div className="group-detail">
+      <h3 className="loop-sub">Rotation</h3>
+      <table className="goal-table loop-table">
+        <thead>
+          <tr>
+            <th>Train</th>
+            <th>Parents</th>
+            <th>Their parents</th>
+            <th className="num">Relations</th>
+            <th className="num">Races</th>
+            <th className="num">Affinity</th>
+          </tr>
+        </thead>
+        <tbody>
+          {g.runs.map((r) => (
+            <tr key={r.trainee.id}>
+              <td><b>{r.trainee.name}</b></td>
+              <td>{r.parents[0].name} × {r.parents[1].name}</td>
+              <td className="muted small">
+                {r.parents[0].name}: {r.parents[1].name} + {r.fourth?.name ?? "—"} · {r.parents[1].name}: {r.parents[0].name} + {r.fourth?.name ?? "—"}
+              </td>
+              <td className="num">{r.relations}</td>
+              <td className="num">{Math.round(r.races)}</td>
+              <td className="num"><b>{Math.round(r.total)}</b></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 className="loop-sub">Shared race plan · {g.sharedG1s} G1s all four run</h3>
+      <div className="seg group-tabs" role="tablist">
+        {g.members.map((x, i) => (
+          <button key={x.card.id} role="tab" aria-selected={x === m} className={x === m ? "on" : ""} onClick={() => setWho(i)}>
+            {x.card.name} <span className="muted small">Dirt <Grade value={x.card.aptitudes.dirt} /></span>
+          </button>
+        ))}
+      </div>
+      <p className="muted small">
+        {m.races.filter((r) => r.goal).length} goal races + {m.races.filter((r) => !r.goal).length} extra G1s, with her base aptitudes (pink sparks in the loop
+        only raise them). Hover a race to see how many of the other three run it.
+      </p>
+      <ScheduleCalendar races={races} sharedLabel="of the other loop umas" />
     </div>
   );
 }

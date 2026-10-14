@@ -139,6 +139,8 @@ const STEPS: Step[] = [
           <li>Your skill <b>goals</b> are shared with the Planner. Pick how much to race, then <b>Find best loop</b>.</li>
           <li>Each setup is an uma to train and her two parents. <b>Both</b>: goals both parents carry. <b>Loop</b>: the chance every goal ends up in her and both parents. <b>Next</b>: the affinity she brings to your next loop uma.</li>
           <li>The <b>race plan</b> keeps her career goals and adds the G1s her parents won (+3 affinity each), using Independent Training win chances. Orange % means she has raced 3+ times in a row.</li>
+          <li><b>Affinity</b> ranking favours parents whose pink sparks lift her dirt or distance aptitude; each setup says what Dirt A (or a distance) would add.</li>
+          <li><b>Fixed 4-uma loop</b>: the best four of your loop umas to train in rotation with one shared race plan, so every horse in every lineage shares the same G1s.</li>
         </ul>
       </>
     ),

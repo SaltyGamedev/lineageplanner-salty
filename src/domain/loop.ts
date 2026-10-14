@@ -8,8 +8,8 @@
 
 import { distanceCategory } from "./config";
 import type { GameData } from "./gameData";
-import { createPlanContext, evaluate, factorGoalKeys, type Lineage } from "./goals";
-import { startingGrade } from "./inheritance";
+import { SLOTS, createPlanContext, evaluate, factorGoalKeys, type Lineage } from "./goals";
+import { GRADE_A, GRADE_S, procChance, startingGrade } from "./inheritance";
 import { usable, validPair, type Constraints } from "./optimizer";
 import { ACTIVE_RULES } from "./rules";
 import { APTITUDE_BY_GROUP } from "./sparks";
@@ -83,6 +83,54 @@ export function startAptitudes(card: Card, lineage: (LineageMember | null)[], da
   const out = { ...card.aptitudes };
   for (const key of Object.keys(out) as (keyof Aptitudes)[]) out[key] = startingGrade(out[key], stars[key] ?? 0);
   return out;
+}
+
+export const APT_KEYS: (keyof Aptitudes)[] = ["turf", "dirt", "short", "mile", "middle", "long", "nige", "senko", "sashi", "oikomi"];
+
+/** Distribution of hidden red-gene points one inspiration gives (index = points). */
+function inspirationPoints(procs: number[]): number[] {
+  const { min, max } = ACTIVE_RULES.aptitude.procPoints;
+  let dist = [1];
+  for (const p of procs) {
+    const next = new Array(dist.length + max).fill(0);
+    dist.forEach((q, pts) => {
+      next[pts] += q * (1 - p);
+      for (let k = min; k <= max; k++) next[pts + k] += (q * p) / (max - min + 1);
+    });
+    dist = next;
+  }
+  return dist;
+}
+
+/**
+ * Expected aptitudes in each career year (Junior, Classic, Senior), as
+ * fractional grades. Junior: the starting grade (pink ★ of the six horses,
+ * max A). Each later year adds the expected grades from that year's
+ * inspiration: every pink spark of the aptitude procs at its slot's affinity
+ * and gives 1–5 hidden points (spread evenly: the real spread is unknown),
+ * points turn into grades by the 1/4/7/10 steps, up to S.
+ */
+export function aptitudesByYear(data: GameData, card: Card, l: Lineage): Aptitudes[] {
+  const pinks: Partial<Record<keyof Aptitudes, number[]>> = {};
+  for (const slot of SLOTS) {
+    const m = l.members[slot];
+    for (const id of m?.factorIds ?? []) {
+      const f = data.factors.get(id);
+      if (!f || f.type !== FactorType.Aptitude) continue;
+      const key = APTITUDE_BY_GROUP[f.groupId];
+      if (key) (pinks[key] ??= []).push(procChance(FactorType.Aptitude, f.stars, l.affinity[slot]));
+    }
+  }
+  const start = startAptitudes(card, Object.values(l.members), data);
+  const years = [start, { ...start }, { ...start }];
+  for (const key of APT_KEYS) {
+    const dist = inspirationPoints(pinks[key] ?? []);
+    const steps = ACTIVE_RULES.aptitude.pointSteps;
+    const gain = steps.reduce((a, step) => a + dist.reduce((q, p, pts) => q + (pts >= step ? p : 0), 0), 0);
+    years[1][key] = Math.min(GRADE_S, start[key] + gain);
+    years[2][key] = Math.min(GRADE_S, start[key] + 2 * gain);
+  }
+  return years;
 }
 
 // -------------------------------------------------------------- calendar
@@ -195,12 +243,41 @@ export const RACE_PLANS: { key: RacePlan; label: string; cost: number; title: st
  * run, since back-to-back races lower the win chance. Each extra race costs
  * `raceCost` affinity points, so a race has to be worth it.
  */
-export function planSchedule(data: GameData, card: Card, apt: Aptitudes, partners: (LineageMember | null)[], raceCost: number = RULES.extraRaceCost): Schedule {
+export function planSchedule(
+  data: GameData,
+  card: Card,
+  apt: Aptitudes | Aptitudes[],
+  partners: (LineageMember | null)[],
+  raceCost: number = RULES.extraRaceCost,
+): Schedule {
+  const wonBy = (saddle: number | null) => (saddle == null ? 0 : partners.filter((p) => p?.winSaddleIds.includes(saddle)).length);
+  const { races, notes } = planRaces(data, card, apt, wonBy, raceCost);
+  const expectedShared = partners.map((p) =>
+    races.reduce((a, r) => a + (r.saddleId != null && p?.winSaddleIds.includes(r.saddleId) ? r.win : 0), 0),
+  );
+  const expectedAffinity = expectedShared.reduce((a, n) => a + n * 3, 0);
+  return { races, expectedAffinity, expectedShared, extraRaces: races.filter((r) => !r.goal).length, notes };
+}
+
+/**
+ * The race plan for any value per G1: `weight(saddle)` is how many lineage
+ * horses (possibly fractional: their chance to have won it) she shares a win
+ * of that G1 with; each shared win is +3 affinity.
+ */
+export function planRaces(
+  data: GameData,
+  card: Card,
+  apt: Aptitudes | Aptitudes[],
+  wonBy: (saddle: number | null) => number,
+  raceCost: number = RULES.extraRaceCost,
+): { races: ScheduledRace[]; notes: CareerGoal[] } {
+  const byYear = Array.isArray(apt) ? apt : [apt, apt, apt];
   const { races: goals, notes } = raceGoals(data, card.charaId);
   const calendar = g1Calendar(data);
-  const wonBy = (saddle: number | null) => (saddle == null ? 0 : partners.filter((p) => p?.winSaddleIds.includes(saddle)).length);
-  const chance = (r: RaceOption, run: number) =>
-    winChance(apt[distanceCategory(r.distance)], r.ground === 2 ? apt.dirt : apt.turf, run);
+  const chance = (r: RaceOption, run: number) => {
+    const a = byYear[Math.ceil(r.turn / 24) - 1];
+    return winChance(a[distanceCategory(r.distance)], r.ground === 2 ? a.dirt : a.turf, run);
+  };
 
   // A goal with options on different turns is pinned to its best option.
   const goalAt = new Map<number, { slot: GoalSlot; options: RaceOption[] }>();
@@ -268,11 +345,7 @@ export function planSchedule(data: GameData, card: Card, apt: Aptitudes, partner
     races = solve();
   }
 
-  const expectedShared = partners.map((p) =>
-    races.reduce((a, r) => a + (r.saddleId != null && p?.winSaddleIds.includes(r.saddleId) ? r.win : 0), 0),
-  );
-  const expectedAffinity = expectedShared.reduce((a, n) => a + n * 3, 0);
-  return { races, expectedAffinity, expectedShared, extraRaces: races.filter((r) => !r.goal).length, notes };
+  return { races, notes };
 }
 
 // ---------------------------------------------------------------- setups
@@ -306,8 +379,13 @@ export interface LoopSetup {
   /** Affinity she would have as a parent for the best next loop uma, with P1/P2 as her grandparents (before races). */
   nextAffinity: number;
   nextTarget: Card | null;
+  /** Expected aptitudes per career year (Junior, Classic, Senior). */
+  aptitudes: Aptitudes[];
+  /** Quick estimate of the shared-G1 affinity her parents' wins allow (no back-to-back penalty). */
+  potential: number;
   /** Filled for the top setups. */
   schedule?: Schedule;
+  advice?: AptitudeAdvice[];
 }
 
 const goalInMember = (data: GameData, m: LineageMember | null, key: string) =>
@@ -323,6 +401,9 @@ function parentLinkAffinity(data: GameData, next: number, parent: number, gps: (
   for (const g of gps) if (g != null && g !== next && g !== parent) a += data.relationSum([next, parent, g]);
   return a;
 }
+
+/** loop: keep every goal in every horse first; affinity: most affinity now + next + race plan first. */
+export type LoopObjective = "loop" | "affinity";
 
 export interface LoopResult {
   setups: LoopSetup[];
@@ -343,7 +424,11 @@ export function optimizeLoop(
   config: PlannerConfig,
   goals: Goal[],
   constraints: Constraints,
-  { limit = 20, raceCost = RULES.extraRaceCost as number }: { limit?: number; raceCost?: number } = {},
+  {
+    limit = 20,
+    raceCost = RULES.extraRaceCost as number,
+    objective = "loop",
+  }: { limit?: number; raceCost?: number; objective?: LoopObjective } = {},
 ): LoopResult {
   const skillGoals = goals.filter((g) => g.kind !== "aptitude");
   const cards = loopCards.map((id) => data.cards.get(id)).filter((c): c is Card => !!c);
@@ -374,9 +459,12 @@ export function optimizeLoop(
         const a = parentLinkAffinity(data, n.charaId, target.charaId, [p1.charaId, p2.charaId]);
         if (nextTarget == null || a > nextAffinity) [nextAffinity, nextTarget] = [a, n];
       }
+      const aptitudes = aptitudesByYear(data, target, l);
       all.push({
         target,
         lineage: l,
+        aptitudes,
+        potential: racePotential(data, aptitudes, [p1, p2]),
         goals: lg,
         unbroken: lg.length ? lg.reduce((a, g) => a * g.kept, 1) : 0,
         keptExpected: lg.reduce((a, g) => a + g.kept, 0),
@@ -390,18 +478,72 @@ export function optimizeLoop(
       for (const r of rentals) consider(mine[i], r);
     }
   }
-  const base = (s: LoopSetup) => s.lineage.compat.total + s.nextAffinity + (s.schedule?.expectedAffinity ?? 0);
+  const base = (s: LoopSetup) => s.lineage.compat.total + s.nextAffinity + (s.schedule?.expectedAffinity ?? s.potential);
   // Loop chances are products of several Spark %, so tiny gaps are noise:
   // compare them in steps of 15% (relative), then let affinity decide.
   const loopStep = (s: LoopSetup) => (s.unbroken > 0 ? Math.floor(Math.log(s.unbroken) / Math.log(1.15)) : -Infinity);
-  const order = (x: LoopSetup, y: LoopSetup) =>
-    y.covered - x.covered || loopStep(y) - loopStep(x) || base(y) - base(x) || y.keptExpected - x.keptExpected;
+  const order =
+    objective === "affinity"
+      ? (x: LoopSetup, y: LoopSetup) => base(y) - base(x) || y.covered - x.covered || y.keptExpected - x.keptExpected
+      : (x: LoopSetup, y: LoopSetup) => y.covered - x.covered || loopStep(y) - loopStep(x) || base(y) - base(x) || y.keptExpected - x.keptExpected;
   all.sort(order);
-  const top = all.slice(0, Math.max(limit * 3, limit));
+  const top = all.slice(0, limit * (objective === "affinity" ? 6 : 3));
   for (const s of top) {
-    const apt = startAptitudes(s.target, Object.values(s.lineage.members), data);
-    s.schedule = planSchedule(data, s.target, apt, [s.lineage.p1, s.lineage.p2], raceCost);
+    const partners = [s.lineage.p1, s.lineage.p2];
+    s.schedule = planSchedule(data, s.target, s.aptitudes, partners, raceCost);
   }
   top.sort(order);
+  for (const s of top.slice(0, limit)) {
+    s.advice = aptitudeAdvice(data, s.target, s.aptitudes, [s.lineage.p1, s.lineage.p2], raceCost, s.schedule!);
+  }
   return { setups: top.slice(0, limit), pairs };
+}
+
+// ---------------------------------------------------------------- advice
+
+/** Shared G1s her parents won, without the race-in-a-row penalty: a quick upper bound for ranking by affinity. */
+export function racePotential(data: GameData, byYear: Aptitudes[], partners: (LineageMember | null)[]): number {
+  const counts = new Map<number, number>();
+  for (const p of partners) for (const id of new Set(p?.winSaddleIds ?? [])) counts.set(id, (counts.get(id) ?? 0) + 1);
+  let total = 0;
+  for (const [id, n] of counts) {
+    const s = data.saddles.get(id);
+    const race = s?.type === 3 && s.raceId != null ? data.raceById.get(s.raceId) : undefined;
+    const course = race ? data.courses.get(race.courseId) : undefined;
+    if (!s?.years?.length || !course) continue;
+    const dist = distanceCategory(course.distance);
+    const best = Math.max(...s.years.map((y) => winChance(byYear[y - 1][dist], course.ground === 2 ? byYear[y - 1].dirt : byYear[y - 1].turf)));
+    total += 3 * n * best;
+  }
+  return total;
+}
+
+export interface AptitudeAdvice {
+  key: "turf" | "dirt" | "short" | "mile" | "middle" | "long";
+  /** Expected affinity the race plan would gain with this aptitude at A from the start. */
+  gain: number;
+  /** G1s her parents won on this surface or distance. */
+  races: number;
+}
+
+/** What raising one surface/distance aptitude to A would add to the race plan, best first. */
+export function aptitudeAdvice(data: GameData, card: Card, byYear: Aptitudes[], partners: (LineageMember | null)[], raceCost: number, plan: Schedule): AptitudeAdvice[] {
+  const keys: AptitudeAdvice["key"][] = ["dirt", "turf", "short", "mile", "middle", "long"];
+  const won = new Set(partners.flatMap((p) => p?.winSaddleIds ?? []));
+  const out: AptitudeAdvice[] = [];
+  for (const key of keys) {
+    if (byYear.every((a) => a[key] >= GRADE_A)) continue;
+    const raised = byYear.map((a) => ({ ...a, [key]: Math.max(a[key], GRADE_A) }));
+    const gain = planSchedule(data, card, raised, partners, raceCost).expectedAffinity - plan.expectedAffinity;
+    let races = 0;
+    for (const id of won) {
+      const s = data.saddles.get(id);
+      const race = s?.type === 3 && s.raceId != null ? data.raceById.get(s.raceId) : undefined;
+      const course = race ? data.courses.get(race.courseId) : undefined;
+      if (!course) continue;
+      if (key === "dirt" ? course.ground === 2 : key === "turf" ? course.ground !== 2 : distanceCategory(course.distance) === key) races++;
+    }
+    if (gain >= 1) out.push({ key, gain, races });
+  }
+  return out.sort((a, b) => b.gain - a.gain);
 }

@@ -387,7 +387,7 @@ input, select { background: var(--surface); }
 .loop-skill { display: flex; gap: 6px; align-items: center; }
 .loop-goals .mini button { padding: 0 0 0 4px; font-size: 10px; color: inherit; }
 .loop-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
-.loop-row { grid-template-columns: 18px minmax(0, 1fr) 44px 56px 64px 48px; }
+.loop-row { grid-template-columns: 18px minmax(0, 1fr) 44px 56px 64px 52px 44px; }
 .loop-table { margin-bottom: 14px; }
 .loop-table .bad { color: var(--danger); }
 .loop-sub { font-size: 14px; margin: 6px 0 4px; }
@@ -398,3 +398,13 @@ input, select { background: var(--surface); }
 .wins-date b.tired { color: var(--warn); }
 .win-key.goal { box-shadow: 0 0 0 2px var(--warn); }
 .loop-legend .win-key { margin-left: 6px; }
+.loop-apt-table { max-width: 560px; margin: 4px 0 8px; }
+.loop-apt-table td, .loop-apt-table th { padding: 3px 8px; }
+.loop-advice { background: color-mix(in srgb, var(--warn) 12%, transparent); border-radius: 8px; padding: 6px 10px; }
+.group-row { grid-template-columns: 18px minmax(0, 1fr) 64px 70px 56px 86px; }
+.group-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+.group-list button.rank-row { background: none; border-color: transparent; text-align: left; }
+.group-list button.rank-row:hover { background: var(--surface-2); }
+.group-list button.rank-row.on { background: var(--accent-soft); color: inherit; }
+.group-detail { margin-top: 12px; }
+.group-tabs { margin: 6px 0; flex-wrap: wrap; }

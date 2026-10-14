@@ -82,3 +82,52 @@ describe("loop setups", () => {
     expect(top.lineage.p1.charaId).not.toBe(top.target.charaId);
   });
 });
+
+describe("aptitude by year and advice", () => {
+  it("never lowers an aptitude over the career and lifts it with pink sparks", async () => {
+    const { aptitudesByYear, aptitudeAdvice, planSchedule: plan } = await import("../src/domain/loop");
+    const { createPlanContext, evaluate } = await import("../src/domain/goals");
+    const d = realData();
+    const vets = sampleVeterans();
+    const card = d.cards.get(100101)!;
+    const pc = createPlanContext(d, { ...DEFAULT_CONFIG, targetCardId: card.id }, [], []);
+    const l = evaluate(pc, vets[0], vets[1]);
+    const years = aptitudesByYear(d, card, l);
+    for (const k of ["turf", "dirt", "short", "mile", "middle", "long"] as const) {
+      expect(years[0][k]).toBeGreaterThanOrEqual(card.aptitudes[k]);
+      expect(years[1][k]).toBeGreaterThanOrEqual(years[0][k]);
+      expect(years[2][k]).toBeGreaterThanOrEqual(years[1][k]);
+      expect(years[2][k]).toBeLessThanOrEqual(8);
+    }
+    const partners = [vets[0], vets[1]];
+    const sched = plan(d, card, years, partners, 3);
+    for (const a of aptitudeAdvice(d, card, years, partners, 3, sched)) {
+      expect(a.gain).toBeGreaterThanOrEqual(1);
+      expect(Math.max(...years.map((y) => y[a.key]))).toBeLessThan(7);
+    }
+  });
+
+  it("ranks by total affinity in affinity mode", () => {
+    const d = realData();
+    const res = optimizeLoop(d, [100101, 100601], sampleVeterans(), [], { ...DEFAULT_CONFIG, useBorrow: false }, [], { excluded: [] }, { limit: 8, objective: "affinity" });
+    const total = (s: (typeof res.setups)[number]) => s.lineage.compat.total + s.nextAffinity + s.schedule!.expectedAffinity;
+    for (let i = 1; i < res.setups.length; i++) expect(total(res.setups[i - 1])).toBeGreaterThanOrEqual(total(res.setups[i]) - 1e-9);
+  });
+});
+
+describe("fixed 4-uma loops", () => {
+  it("4 umas beat 3, and one shared schedule beats unaligned ones", async () => {
+    const { bestGroups } = await import("../src/domain/loopGroup");
+    const d = realData();
+    const pool = [100101, 100601, 101701, 100701, 102001].filter((id) => d.cards.has(id));
+    const four = bestGroups(d, pool, { size: 4, raceCost: 3, limit: 1 })[0];
+    const three = bestGroups(d, pool, { size: 3, raceCost: 3, limit: 1 })[0];
+    expect(four.affinity).toBeGreaterThan(three.affinity);
+    expect(four.races).toBeGreaterThan(four.independentRaces);
+    // Every run's parents and their parents are other loop umas.
+    for (const r of four.runs) {
+      expect(r.fourth).not.toBeNull();
+      expect([r.parents[0].charaId, r.parents[1].charaId, r.fourth!.charaId]).not.toContain(r.trainee.charaId);
+    }
+  });
+});
