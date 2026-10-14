@@ -6,6 +6,7 @@ import { DEFAULT_CONFIG, targetContext } from "../src/domain/config";
 import { createPlanContext } from "../src/domain/goals";
 import type { Goal, PlannerConfig } from "../src/domain/types";
 import { FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "../src/ui/pickers";
+import { Guide } from "../src/ui/Guide";
 import { Planner } from "../src/ui/Planner";
 import { Roster } from "../src/ui/Roster";
 import { TierListView } from "../src/ui/TierList";
@@ -55,6 +56,12 @@ describe("UI smoke", () => {
     const pc = createPlanContext(data, cfg, goals, []);
     renderToString(h(VeteranPicker, { data, pc, fixed: vets[1], candidates: vets, excluded: [], current: vets[2], onPick: noop, onClose: noop }));
     renderToString(h(FriendsPicker, { data, rentals: [], apiKey: "", onApiKey: noop, onLookup: async () => {}, onRemove: noop, onClose: noop }));
+  });
+
+  it("renders the guide", () => {
+    const html = renderToString(h(Guide, { onClose: noop }));
+    expect(html).toContain("What this does");
+    expect(html.match(/role="tab"/g)).toHaveLength(8); // one dot per step
   });
 
   it("renders the tier list and roster", () => {

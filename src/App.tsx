@@ -6,6 +6,7 @@ import type { Goal, ImportResult, PlannerConfig, SparkFilter, Veteran } from "./
 import { fetchRental } from "./domain/umamoe";
 import { clearRoster, loadRoster, readLocal, readLocalArray, saveRoster, writeLocal } from "./state/storage";
 import { Empty, Spinner } from "./ui/common";
+import { Guide } from "./ui/Guide";
 import { Planner } from "./ui/Planner";
 import { Roster } from "./ui/Roster";
 import { TierListView } from "./ui/TierList";
@@ -49,6 +50,7 @@ export function App() {
     history.replaceState(null, "", t === "planner" ? location.pathname + location.search : `#${t}`);
   };
   const fileRef = useRef<HTMLInputElement>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     loadGameData().then(setData, (e: Error) => setDataError(e.message));
@@ -108,6 +110,7 @@ export function App() {
           ))}
         </nav>
         <div className="roster-actions">
+          <button className="icon info-btn" onClick={() => setGuideOpen(true)} aria-label="Guide" title="How to use this page">?</button>
           {roster && <span className="muted small">{own.length} veterans</span>}
           <button className="primary" onClick={() => fileRef.current?.click()}>{roster ? "Re-import" : "Import"}</button>
           {roster && <button onClick={async () => { await clearRoster(); setRoster(null); }}>Clear</button>}
@@ -115,6 +118,7 @@ export function App() {
         </div>
       </header>
 
+      {guideOpen && <Guide onClose={() => setGuideOpen(false)} />}
       {importError && <div className="banner error">{importError} <button className="link" onClick={() => setImportError(null)}>Dismiss</button></div>}
 
       <main className="main">
