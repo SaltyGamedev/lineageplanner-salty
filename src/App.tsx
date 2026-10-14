@@ -10,10 +10,12 @@ import { Guide } from "./ui/Guide";
 import { Planner } from "./ui/Planner";
 import { Roster } from "./ui/Roster";
 import { TierListView } from "./ui/TierList";
+import { Loop } from "./ui/Loop";
 
-type Tab = "planner" | "tiers" | "roster";
+type Tab = "planner" | "loop" | "tiers" | "roster";
 const TABS: { key: Tab; label: string }[] = [
   { key: "planner", label: "Planner" },
+  { key: "loop", label: "Loop" },
   { key: "tiers", label: "Tier list" },
   { key: "roster", label: "Roster" },
 ];
@@ -39,6 +41,7 @@ export function App() {
   const [filters, setFilters] = usePersisted<SparkFilter[]>("filters", () => readLocalArray<SparkFilter>("filters"));
   const [excluded, setExcluded] = usePersisted<number[]>("excluded", () => readLocalArray<number>("excluded"));
   const [extraRentals, setExtraRentals] = usePersisted<Veteran[]>("rentals", () => readLocalArray<Veteran>("rentals"));
+  const [loopCards, setLoopCards] = usePersisted<number[]>("loopCards", () => readLocalArray<number>("loopCards"));
   const [apiKey, setApiKey] = usePersisted<{ key: string }>("umamoe", () => readLocal("umamoe", { key: "" }));
 
   const [tab, setTabState] = useState<Tab>(() => {
@@ -143,6 +146,21 @@ export function App() {
             onApiKey={(key) => setApiKey({ key })}
             onLookup={lookup}
             onRemoveRental={(v) => setExtraRentals(extraRentals.filter((x) => x.trainedId !== v.trainedId))}
+          />
+        ) : tab === "loop" ? (
+          <Loop
+            data={data}
+            own={own}
+            rentals={rentals}
+            config={config}
+            onConfig={setConfig}
+            goals={goals}
+            onGoals={setGoals}
+            filters={filters}
+            onFilters={setFilters}
+            excluded={excluded}
+            loopCards={loopCards}
+            onLoopCards={setLoopCards}
           />
         ) : tab === "tiers" ? (
           <TierListView data={data} pool={[...own, ...rentals]} style={effectiveConfig(config, data).style} goals={goals} onGoals={setGoals} />

@@ -1,5 +1,5 @@
 import { EMPTY_EXTRAS, loadRaceExtras, type RaceExtras } from "./raceExtras";
-import type { Card, Chara, Course, Factor, RawGameData, Saddle, Skill } from "./types";
+import type { Card, CareerGoal, Chara, Course, Factor, Race, RawGameData, Saddle, Skill } from "./types";
 
 /** Read-only indexed view over the generated game data. */
 export class GameData {
@@ -12,6 +12,8 @@ export class GameData {
   readonly courses = new Map<number, Course>();
   readonly tracks = new Map<number, string>();
   readonly races: RawGameData["races"];
+  readonly raceById = new Map<number, Race>();
+  readonly careerGoals = new Map<number, CareerGoal[]>();
   readonly relationPoints = new Map<number, number>();
   /** chara id -> relation groups (succession_relation_member.relation_type) it belongs to */
   readonly relationsByChara = new Map<number, number[]>();
@@ -38,6 +40,8 @@ export class GameData {
       }
     }
     this.races = raw.races;
+    for (const r of raw.races) this.raceById.set(r.id, r);
+    for (const [chara, goals] of Object.entries(raw.careerGoals ?? {})) this.careerGoals.set(Number(chara), goals);
     this.relationRanks = raw.relations.ranks;
   }
 

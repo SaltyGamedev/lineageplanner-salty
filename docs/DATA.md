@@ -43,6 +43,8 @@ python3 scripts/ingest/fetch_images.py public/data/game-data.json public/img/car
 | `text_data` 111/32/35 | saddle (win) names, race names, track short names |
 | `chara_data` | character colour (used for the initials avatars) |
 | `card_data`, `card_rarity_data`, `skill_set` | base aptitudes (1 = G … 8 = S) and unique skill |
+| `available_skill_set` | skills each card can learn from its own hints and potential levels (Loop: notable skills, "own" skills) |
+| `single_mode_route`, `single_mode_route_race`, `single_mode_program` | career goals of each character's default route: turn, race options (goals sharing a `sort_id` are alternatives) and placement, or a fan/graded-race requirement |
 | `skill_data` | rarity, group, activation conditions (`precondition_1/2`, `condition_1/2`) |
 | `succession_factor`, `succession_factor_effect` | spark star count, type, group; effect target 41 gives the hinted skill |
 | `succession_relation`, `succession_relation_member`, `succession_relation_rank` | compatibility groups, points and the △○◎ thresholds |

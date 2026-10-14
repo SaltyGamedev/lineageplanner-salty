@@ -48,6 +48,10 @@ def build(mdb: Path, meta_extra: dict) -> dict:
 
     card_full, card_title = texts(con, TXT_CARD_FULL), texts(con, TXT_CARD_TITLE)
     skill_sets = {row[0]: [v for v in row[1::2] if v] for row in q("select * from skill_set")}
+    # Skills a card can learn from its own hints and potential levels (available_skill_set_id = card id).
+    learnable = defaultdict(list)
+    for set_id, skill_id in q("select available_skill_set_id, skill_id from available_skill_set order by id"):
+        learnable[set_id].append(skill_id)
     cards = {}
     for cid, chara_id, default_rarity, style in q("select id, chara_id, default_rarity, running_style from card_data"):
         apt = q(
@@ -71,6 +75,7 @@ def build(mdb: Path, meta_extra: dict) -> dict:
             "runningStyle": style,
             "aptitudes": dict(zip(keys, apt[:10])),
             "uniqueSkillId": unique,
+            "skillIds": learnable.get(cid, []),
         }
 
     skill_names, skill_desc = texts(con, TXT_SKILL_NAME), texts(con, TXT_SKILL_DESC)
@@ -156,6 +161,29 @@ def build(mdb: Path, meta_extra: dict) -> dict:
         seen.add((name, course))
         races.append({"id": rid, "name": name, "grade": RACE_GRADES[grade], "courseId": course})
 
+    # Career goals from each character's default route (scenario 0, no branch
+    # condition). Goals that share a sort_id are alternatives ("Oaks or Derby").
+    # condition_type 1 = place in a given race (condition_id is a program id);
+    # 3 = reach a fan count; 2 = place in a number of graded races; the rest
+    # (fans with extra rules, scenario finals) are kept as a plain note.
+    # race_type 1-3 are the scenario finals after turn 72 and are left out.
+    race_of_program = dict(q("select id, race_instance_id / 100 from single_mode_program"))
+    course_of_race = dict(q("select id, course_set from race"))
+    career_goals = {}
+    for chara_id, race_set in q("select chara_id, race_set_id from single_mode_route where scenario_id = 0 and condition_set_id = 0"):
+        goals = {}
+        for sort_id, turn, ctype, cid, v1, v2 in q(
+            "select sort_id, turn, condition_type, condition_id, condition_value_1, condition_value_2"
+            " from single_mode_route_race where race_set_id = ? and race_type = 0 order by sort_id, turn, id",
+            (race_set,),
+        ):
+            goal = goals.setdefault(sort_id, {"turn": turn, "type": ctype, "value": v1, "count": v2, "options": []})
+            race = race_of_program.get(cid) if ctype == 1 else None
+            if race and race in race_names:
+                goal["options"].append({"turn": turn, "raceId": race, "name": race_names[race], "courseId": course_of_race.get(race)})
+        if chara_id in charas and goals:
+            career_goals[chara_id] = list(goals.values())
+
     digest = hashlib.sha256(mdb.read_bytes()).hexdigest()
     return {
         "meta": {
@@ -174,6 +202,7 @@ def build(mdb: Path, meta_extra: dict) -> dict:
         "tracks": tracks,
         "courses": courses,
         "races": races,
+        "careerGoals": career_goals,
     }
 
 

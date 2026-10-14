@@ -22,6 +22,8 @@ Only mechanics live on the **Global** server are used. JP-only content (skills, 
 | Spark generation = base × 1.1ⁿ (20% / 25% / 40% / race 20%) | – | **Estimate** (fitted to large datasets) | Crazyfellow ch. 4 (aoneko) |
 | Career-start aptitude boost from pink ★ (1/4/7/10 → +1…+4, max A) | – | **Strong empirical finding** | Crazyfellow ch. 3 |
 | Mid-run red gene: each proc gives 1–5 hidden points, points → grades as above, per inspiration | – | **Hypothesis** (the guide infers it, no statistics) | Crazyfellow ch. 3 |
+| Independent Training wins: distance × surface aptitude table (A+/A+ 110% … −10% per grade on either axis), −10/−25/−35/−50% for the 3rd/4th/5th/6th+ race in a row; style aptitude unused | – | **Strong empirical finding** | [uma.guide, Independent Training](https://uma.guide/guides/independent-training) |
+| Career goals per character (default route) | – | **Confirmed** (game data) | Global `master.mdb` (`single_mode_route`, `single_mode_route_race`) |
 
 All of these values live in one versioned rule set, [`src/domain/rules.ts`](../src/domain/rules.ts) (`global-2026-06-24`), and tests pin them. When Global changes a rule, add a new set with its effective date instead of editing constants across the code.
 
@@ -92,3 +94,13 @@ The chance that your trainee generates the white or race spark itself, if it lea
 ## Race fit
 
 The goal picker marks skills that target the selected race ("race ✓") or can't trigger in it (✗). This comes from the skill's activation conditions (`src/domain/conditions.ts`), evaluated against the style, distance, surface, ground, season, weather, course, direction and slopes. Race details come from GameTora's Champions Meeting schedule and course layouts.
+
+## Loop
+
+The **Loop** tab plans the next parent to train from the umas you want to keep in rotation.
+
+* For every loop uma T and every valid parent pair (P1, P2), the lineage is scored for the skill goals as in the Planner.
+* A goal is **kept** when P1 and P2 both carry its spark and T generates it too: kept = [P1 has it] × [P2 has it] × learn × Spark %. **Learn** is 1 when it is one of T's own skills (her hints and potential skills), otherwise the Inherit %. **Loop** is the chance every goal is kept (the loop stays unbroken).
+* Order: goals both parents carry, then Loop, then expected goals kept, then affinity now + **Next** (her affinity as a parent for the best other loop uma, with P1/P2 as her grandparents, plus the expected shared G1s from the race plan).
+* **Race plan**: dynamic programming over the 72 career turns. Goal races are fixed (for "A or B" goals the more useful option). An extra G1 is added when a parent won it: each win is +3 affinity with every parent that also won it, weighted by the Independent Training win chance from her starting aptitudes (with this lineage's pink ★) and the back-to-back penalty. A G1 counts once, so it is planned in one year only. Each extra race must be worth 1 (Most affinity), 3 (Balanced) or 6 (Few races) expected affinity; racing less helps the rating.
+* Scenario finals and goals that are not a specific race (fans, "top 3 in N graded races") are shown as notes, not planned.

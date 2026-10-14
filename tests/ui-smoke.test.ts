@@ -7,6 +7,8 @@ import { createPlanContext } from "../src/domain/goals";
 import type { Goal, PlannerConfig } from "../src/domain/types";
 import { FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "../src/ui/pickers";
 import { Guide } from "../src/ui/Guide";
+import { Loop, SetupDetail } from "../src/ui/Loop";
+import { optimizeLoop } from "../src/domain/loop";
 import { Planner } from "../src/ui/Planner";
 import { Roster } from "../src/ui/Roster";
 import { TierListView } from "../src/ui/TierList";
@@ -58,10 +60,25 @@ describe("UI smoke", () => {
     renderToString(h(FriendsPicker, { data, rentals: [], apiKey: "", onApiKey: noop, onLookup: async () => {}, onRemove: noop, onClose: noop }));
   });
 
+  it("renders the loop view and a setup with its race plan", () => {
+    const html = renderToString(
+      h(Loop, {
+        data, own: vets, rentals: [], config: cfg, onConfig: noop, goals, onGoals: noop, filters: [], onFilters: noop,
+        excluded: [], loopCards: [100101, 100601], onLoopCards: noop,
+      }),
+    );
+    expect(html).toContain("Loop umas");
+    expect(html).toContain("career goals");
+    const res = optimizeLoop(data, [100101, 100601], vets, [], cfg, goals, { excluded: [] }, { limit: 3 });
+    const detail = renderToString(h(SetupDetail, { data, s: res.setups[0] }));
+    expect(detail).toContain("Race plan");
+    expect(detail).toContain("Junior");
+  });
+
   it("renders the guide", () => {
     const html = renderToString(h(Guide, { onClose: noop }));
     expect(html).toContain("What this does");
-    expect(html.match(/role="tab"/g)).toHaveLength(8); // one dot per step
+    expect(html.match(/role="tab"/g)).toHaveLength(9); // one dot per step
   });
 
   it("renders the tier list and roster", () => {

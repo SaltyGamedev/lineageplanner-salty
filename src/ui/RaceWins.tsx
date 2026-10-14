@@ -5,8 +5,8 @@ import type { GameData } from "../domain/gameData";
 import type { LineageMember, Saddle } from "../domain/types";
 import { Modal, Portrait } from "./common";
 
-const YEARS = ["Junior", "Classic", "Senior"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const YEARS = ["Junior", "Classic", "Senior"];
+export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const GRADE: Record<number, string> = { 1: "G3", 2: "G2", 3: "G1" };
 
 /** The race saddles a horse won (titles left out), each once. */
@@ -36,6 +36,16 @@ export function placeWins(wins: Saddle[]): Map<string, Saddle[]> {
 export function winsLabel(data: GameData, m: LineageMember): string {
   const wins = raceWins(data, m);
   return `${wins.filter((s) => s.type === 3).length} G1 · ${wins.length} wins`;
+}
+
+/** A race banner (self-hosted), or the race name when there is none. */
+export function RaceBanner({ raceId, name }: { raceId: number | null | undefined; name: string }) {
+  const [failed, setFailed] = useState(false);
+  return raceId != null && !failed ? (
+    <img src={`${import.meta.env.BASE_URL}img/races/${raceId}.png`} alt={name} width={64} height={32} loading="lazy" onError={() => setFailed(true)} />
+  ) : (
+    <span className="win-name">{name}</span>
+  );
 }
 
 function Banner({ s, shared }: { s: Saddle; shared: boolean }) {

@@ -130,7 +130,21 @@ const STEPS: Step[] = [
     ),
   },
   {
-    title: "7 · Tier list and Roster",
+    title: "7 · Loop",
+    body: (
+      <>
+        <p>The <b>Loop</b> tab plans your next parent run so your goal skills never drop out of the loop.</p>
+        <ul>
+          <li><b>Add umas</b> you'd like to keep training as parents. Each card shows her aptitudes, unique skill and the tier-list skills she can learn herself.</li>
+          <li>Your skill <b>goals</b> are shared with the Planner. Pick how much to race, then <b>Find best loop</b>.</li>
+          <li>Each setup is an uma to train and her two parents. <b>Both</b>: goals both parents carry. <b>Loop</b>: the chance every goal ends up in her and both parents. <b>Next</b>: the affinity she brings to your next loop uma.</li>
+          <li>The <b>race plan</b> keeps her career goals and adds the G1s her parents won (+3 affinity each), using Independent Training win chances. Orange % means she has raced 3+ times in a row.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    title: "8 · Tier list and Roster",
     body: (
       <>
         <ul>

@@ -39,6 +39,8 @@ export interface Card {
   runningStyle: number;
   aptitudes: Aptitudes;
   uniqueSkillId: number | null;
+  /** Skills the card can learn from its own hints and potential levels. */
+  skillIds?: number[];
 }
 
 export interface SkillCondition {
@@ -127,6 +129,21 @@ export interface RawGameData {
   tracks: Record<string, string>;
   courses: Record<string, Course>;
   races: Race[];
+  /** chara id -> career goals of its default route. */
+  careerGoals?: Record<string, CareerGoal[]>;
+}
+
+/**
+ * One career goal. type 1 = place `value` or better in one of `options` (a
+ * goal with no options is the debut); 3 = reach `value` fans; 2 = place
+ * `value` or better in `count` graded races; other types are scenario rules.
+ */
+export interface CareerGoal {
+  turn: number;
+  type: number;
+  value: number;
+  count: number;
+  options: { turn: number; raceId: number; name: string; courseId: number | null }[];
 }
 
 // ---------------------------------------------------------------- veterans

@@ -2,7 +2,7 @@
 """Download images once and keep them in the repo, so visitors never load them from GameTora.
 
   * card portraits -> OUT_DIR/cards/<card_id>.png
-  * race banners for every race saddle (G1/G2/G3) -> OUT_DIR/races/<race_id>.png
+  * race banners for every race saddle (G1/G2/G3) and career-goal race -> OUT_DIR/races/<race_id>.png
     (the English banner, or the JP one when there is none)
   * Champions Meeting banners -> OUT_DIR/cm/<cm_id>.png (Global banner) or
     <cm_id>-jp.png (the JP banner, for upcoming meetings until Global has its
@@ -69,6 +69,13 @@ def main() -> None:
     for s in data["saddles"].values():
         if s.get("raceId"):
             by_name.setdefault(s["name"], []).append(s["raceId"])
+    # Career-goal races (some are open races without a saddle).
+    for goals in data.get("careerGoals", {}).values():
+        for goal in goals:
+            for o in goal["options"]:
+                ids = by_name.setdefault(o["name"], [])
+                if o["raceId"] not in ids:
+                    ids.append(o["raceId"])
     race_file = lambda r: os.path.join(race_dir, f"{r}.png")
     first = sorted(min(ids) for ids in by_name.values())
     missing = [r for r in first if not os.path.exists(race_file(r))]

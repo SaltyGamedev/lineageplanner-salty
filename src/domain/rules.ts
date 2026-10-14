@@ -86,6 +86,22 @@ export const GLOBAL_2026_06_24 = {
       note: "Inferred by the guide's author without statistics; shown as a range.",
     } satisfies RuleSource,
   },
+
+  /** Independent Training races: the result comes from aptitudes, not stats or skills. */
+  independentTraining: {
+    /** Win % at distance A+/surface A+; each grade below A on either axis takes off `winTableStep`. */
+    winTableTop: 110,
+    winTableStep: 10,
+    /** [races in a row, win % taken off] — racing back to back without a rest. */
+    consecutivePenalty: [[3, 10], [4, 25], [5, 35], [6, 50]] as readonly (readonly [number, number])[],
+    /** Planner setting, not a game rule: affinity an extra race must beat (racing less helps the rating). */
+    extraRaceCost: 1,
+    source: {
+      evidence: "strong-empirical",
+      source: "uma.guide, Independent Training guide (https://uma.guide/guides/independent-training)",
+      note: "Win table by distance × surface aptitude and the consecutive-race penalty. Style aptitude is not used.",
+    } satisfies RuleSource,
+  },
 } as const;
 
 export type RuleSet = typeof GLOBAL_2026_06_24;
