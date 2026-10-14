@@ -54,6 +54,17 @@ export function App() {
   };
   const fileRef = useRef<HTMLInputElement>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    const saved = readLocal<{ mode?: string }>("theme", {}).mode;
+    if (saved === "light" || saved === "dark") return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    writeLocal("theme", { mode: next });
+  };
 
   useEffect(() => {
     loadGameData().then(setData, (e: Error) => setDataError(e.message));
@@ -113,6 +124,7 @@ export function App() {
           ))}
         </nav>
         <div className="roster-actions">
+          <button className="theme-btn" onClick={toggleTheme} aria-label="Toggle light/dark theme" title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>{theme === "dark" ? "☀" : "☾"}</button>
           <button className="icon info-btn" onClick={() => setGuideOpen(true)} aria-label="Guide" title="How to use this page">?</button>
           {roster && <span className="muted small">{own.length} veterans</span>}
           <button className="primary" onClick={() => fileRef.current?.click()}>{roster ? "Re-import" : "Import"}</button>
