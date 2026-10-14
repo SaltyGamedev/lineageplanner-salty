@@ -235,6 +235,9 @@ input, select { background: var(--surface); }
 .goal-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .goal-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .goal-table .num { text-align: right; width: 64px; }
+.goal-table .rm { width: 28px; text-align: right; }
+.goal-table .rm button { padding: 2px 6px; }
+.goal-table .rm button:hover { color: var(--danger); }
 .goal-table tr.fails td { color: var(--danger); }
 .goal-table td .tier { margin-left: 6px; }
 .from { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -277,7 +280,7 @@ input, select { background: var(--surface); }
   .seg button { padding: 5px 4px; }
   .goal-table .num { width: 48px; }
   .swap { position: static; }
-  .goal-table th:nth-child(4), .goal-table td:nth-child(4) { display: none; }
+  .goal-table th:nth-child(4), .goal-table td.from { display: none; }
   .modal-backdrop { padding: 0; place-items: end stretch; }
   .modal { max-height: 92vh; border-radius: 14px 14px 0 0; width: 100%; }
 }

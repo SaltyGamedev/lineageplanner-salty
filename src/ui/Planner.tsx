@@ -156,14 +156,12 @@ export function Planner(props: Props) {
                   {TIER_LABEL[g.sparkTier]}
                 </button>
               )}
-              <button className="x" onClick={() => onGoals(goals.filter((x) => goalKey(x) !== key))} aria-label="Remove">×</button>
             </span>
           );
         })}
         {filters.map((f) => (
           <span key={`${f.color}:${f.groupId}`} className={`goal-chip filter chip-${f.color}`}>
             {filterLabel(data, f)}
-            <button className="x" onClick={() => onFilters(filters.filter((x) => x !== f))} aria-label="Remove">×</button>
           </span>
         ))}
         <button className="primary small-btn" onClick={() => setOpen("goals")} disabled={!target}>+ Goal</button>
@@ -189,7 +187,13 @@ export function Planner(props: Props) {
             </div>
             {!current.ok && <p className="warn small">Doesn't meet the spark filters: no pair does.</p>}
             <Tree data={data} target={target.id} l={current} goals={current.goals} onPick={(slot) => setOpen({ slot })} />
-            <GoalTable data={data} l={current} style={eff.style} />
+            <GoalTable
+              data={data}
+              l={current}
+              style={eff.style}
+              onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
+              onRemoveFilter={(f) => onFilters(filters.filter((x) => !(x.color === f.color && x.groupId === f.groupId)))}
+            />
           </section>
 
           <section className="panel ranking">
@@ -306,13 +310,21 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
 
 // ------------------------------------------------------------ goal table
 
-function GoalTable({ data, l, style }: { data: GameData; l: Lineage; style: PlannerConfig["style"] }) {
+interface GoalTableProps {
+  data: GameData;
+  l: Lineage;
+  style: PlannerConfig["style"];
+  onRemoveGoal: (key: string) => void;
+  onRemoveFilter: (f: SparkFilter) => void;
+}
+
+function GoalTable({ data, l, style, onRemoveGoal, onRemoveFilter }: GoalTableProps) {
   const tiers = resolveTierList(data, style);
   if (!l.goals.length && !l.filters.length) return <p className="muted small">Add goals to rank pairs by them; until then pairs are ranked by affinity.</p>;
   return (
     <table className="goal-table">
       <thead>
-        <tr><th>Goal</th><th className="num" title="Chance to inherit (or reach the grade) over both inspirations">Inherit</th><th className="num" title="Chance your trainee generates this spark (if it learns the skill / wins the race)">Spark</th><th>From</th></tr>
+        <tr><th>Goal</th><th className="num" title="Chance to inherit (or reach the grade) over both inspirations">Inherit</th><th className="num" title="Chance your trainee generates this spark (if it learns the skill / wins the race)">Spark</th><th>From</th><th /></tr>
       </thead>
       <tbody>
         {l.goals.map((r) => (
@@ -335,13 +347,15 @@ function GoalTable({ data, l, style }: { data: GameData; l: Lineage; style: Plan
               ))}
               {r.hits.length === 0 && <span className="muted small">none</span>}
             </td>
+            <td className="rm"><button className="icon" onClick={() => onRemoveGoal(r.key)} aria-label={`Remove ${r.label}`} title="Remove">✕</button></td>
           </tr>
         ))}
         {l.filters.map((f) => (
           <tr key={`${f.filter.color}:${f.filter.groupId}`} className={f.ok ? "" : "fails"}>
             <td><span className={`dot chip-${f.filter.color}`} />{f.label}</td>
             <td className="num" colSpan={2}>{f.stars}★ {f.ok ? "✓" : "✗"}</td>
-            <td />
+            <td className="from" />
+            <td className="rm"><button className="icon" onClick={() => onRemoveFilter(f.filter)} aria-label={`Remove ${f.label}`} title="Remove">✕</button></td>
           </tr>
         ))}
       </tbody>
