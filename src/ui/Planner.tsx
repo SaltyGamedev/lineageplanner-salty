@@ -3,7 +3,7 @@ import { STYLES, distanceCategory, effectiveConfig, targetContext } from "../dom
 import { RANK_SYMBOL } from "../domain/compatibility";
 import type { GameData } from "../domain/gameData";
 import { SLOTS, evaluate, goalKey, skillVersions, type GoalResult, type Lineage, type Slot, type SparkTier } from "../domain/goals";
-import { optimize } from "../domain/optimizer";
+import { optimize, type RankOrder } from "../domain/optimizer";
 import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } from "../domain/raceExtras";
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { rosterSparks } from "../domain/roster";
@@ -36,6 +36,7 @@ export function Planner(props: Props) {
   const { data, own, rentals, config, onConfig, goals, onGoals, filters, onFilters, excluded } = props;
   const [open, setOpen] = useState<Open>(null);
   const [manual, setManual] = useState<[number, number] | null>(null);
+  const [order, setOrder] = useState<RankOrder>("hits");
   const target = config.targetCardId != null ? data.cards.get(config.targetCardId) : undefined;
   const eff = effectiveConfig(config, data);
   const course = eff.courseId != null ? data.courses.get(eff.courseId) : undefined;
@@ -45,11 +46,11 @@ export function Planner(props: Props) {
   const result = useMemo(() => {
     if (!target || own.length < 1) return null;
     try {
-      return optimize(data, own, rentals, config, goals, filters, { excluded }, 20);
+      return optimize(data, own, rentals, config, goals, filters, { excluded }, 20, order);
     } catch {
       return null;
     }
-  }, [data, own, rentals, config, goals, filters, excluded, target]);
+  }, [data, own, rentals, config, goals, filters, excluded, target, order]);
 
   const current: Lineage | null = useMemo(() => {
     if (!result) return null;
@@ -178,8 +179,13 @@ export function Planner(props: Props) {
               <h2>Best pairs</h2>
               <span className="muted small">{result.pairs} scored{result.filteredOut ? ` · ${result.filteredOut} filtered` : ""}</span>
             </div>
+            <div className="seg order-seg" role="group" aria-label="Order pairs by">
+              {([["hits", "Most goals", "Most goals passed on (goals marked ! count more)"], ["all", "All goals", "Best chance that every goal is inherited"], ["affinity", "Affinity", "Highest lineage affinity"]] as const).map(([k, label, title]) => (
+                <button key={k} className={order === k ? "on" : ""} title={title} onClick={() => setOrder(k)} disabled={k !== "affinity" && goals.length === 0}>{label}</button>
+              ))}
+            </div>
             <div className="rank-head" aria-hidden>
-              <span className="rh-hits" title="Expected number of your goals this pair passes on (the list is ordered by this; goals marked ! count more).">Hits</span>
+              <span className="rh-hits" title="Expected number of your goals this pair passes on.">Hits</span>
               <span className="rh-all" title="Chance that every goal is inherited.">All</span>
               <span className="rh-aff" title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
             </div>
@@ -251,6 +257,9 @@ export function Planner(props: Props) {
 
 // ------------------------------------------------------------------ tree
 
+const g1Names = (data: GameData, ids: number[]) => (ids.length ? ids.map((id) => data.saddles.get(id)?.name ?? id).join(", ") : "none");
+const gpShared = (l: Lineage, slot: Slot) => l.compat.parents[slot.startsWith("p1") ? 0 : 1].sharedG1.grandparents[Number(slot[3]) - 1];
+
 /** A horse's blue, pink and green sparks, in that order. */
 function baseSparks(data: GameData, m: { factorIds: number[] }) {
   const order = { blue: 0, pink: 1, green: 2 } as const;
@@ -281,12 +290,15 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
               {isParent ? (
                 <span
                   className="aff"
-                  title={`Own affinity ${l.compat.parents[slot === "p1" ? 0 : 1].own} (as uma.guide shows it). Its sparks roll at ${l.affinity[slot]}, which adds the links with its two grandparents.`}
+                  title={`Own affinity ${l.compat.parents[slot === "p1" ? 0 : 1].own} (as uma.guide shows it). Its sparks roll at ${l.affinity[slot]}, which adds the links with its two grandparents.\nShared G1s with the other parent (${l.compat.parents[slot === "p1" ? 0 : 1].sharedG1.pair.length}): ${g1Names(data, l.compat.parents[slot === "p1" ? 0 : 1].sharedG1.pair)}`}
                 >
                   {l.compat.parents[slot === "p1" ? 0 : 1].own}
                 </span>
               ) : (
-                <span className="aff" title="Affinity of this grandparent: its link with the trainee and parent, plus G1 wins shared with the parent.">{l.affinity[slot]}</span>
+                <>
+                  <span className="aff" title="Affinity of this grandparent: its link with the trainee and parent, plus 3 per G1 it shares with the parent.">{l.affinity[slot]}</span>
+                  <span className="g1" title={`G1s shared with the parent: ${g1Names(data, gpShared(l, slot))}`}>{gpShared(l, slot).length} G1</span>
+                </>
               )}
               {v?.borrowed && <em className="badge rental">rental</em>}
             </div>
@@ -403,8 +415,8 @@ function GoalTable({ data, l, style, onPriority, onTier, onRemoveGoal, onRemoveF
       <thead>
         <tr>
           {head("tier", "Goal", "Sort by tier (best first)")}
-          {head("inherit", "Inherit", "Chance to inherit (or reach the grade) over both inspirations", "num")}
-          {head("spark", "Spark", "Chance your trainee generates this spark (if it learns the skill / wins the race)", "num")}
+          {head("inherit", "Inherit", "Chance to inherit (or reach the grade) over both inspirations. Strong empirical finding: base odds × (1 + affinity/100). Aptitude ranges rest on a hypothesis.", "num")}
+          {head("spark", "Spark", "Chance your trainee generates this spark (if it learns the skill / wins the race). Estimate: base × 1.1ⁿ.", "num")}
           {head("stars", "★", "Sort by total ★ in the lineage", "from")}
           <th />
         </tr>

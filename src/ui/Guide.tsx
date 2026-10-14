@@ -79,7 +79,7 @@ const STEPS: Step[] = [
           <li>The first chips are the horse's blue, pink and green sparks; the chips below them are the sparks that match your goals.</li>
           <li>Goal sparks look like <span className="mini chip-white">Uma Stan <Stars n={2} /></span></li>
           <li><b>Change</b> on a parent lets you pick another veteran to pair with the other parent.</li>
-          <li>A grandparent can't be changed alone: it belongs to its parent.</li>
+          <li>A grandparent can't be changed alone: it belongs to its parent. "15 G1" is how many G1s it shares with that parent (+3 affinity each); hover for the list.</li>
         </ul>
       </>
     ),
@@ -109,7 +109,10 @@ const STEPS: Step[] = [
     title: "6 · Best pairs",
     body: (
       <>
-        <p>The list on the right ranks every valid pair. Click one to see it in the tree. The summary above the tree shows:</p>
+        <p>
+          The list on the right ranks every valid pair. Click one to see it in the tree. Choose the order above it:
+          <b> Most goals</b>, <b>All goals</b> or <b>Affinity</b>. The summary above the tree shows:
+        </p>
         <ul>
           <li><b>All inherited</b>: the chance every goal is inherited.</li>
           <li><b>All sparks</b>: the chance your trainee also generates every goal's own spark (goals that have a Spark %).</li>

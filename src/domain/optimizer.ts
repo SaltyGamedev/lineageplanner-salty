@@ -37,11 +37,21 @@ export function validPair(a: Veteran, b: Veteran): boolean {
   return true;
 }
 
-/** Best first: filters met, then goal score (or affinity without goals), then affinity. */
-export function compareLineages(x: Lineage, y: Lineage): number {
+/**
+ * How pairs are ordered. Goals can pull in different directions, so the user
+ * picks the objective:
+ *   hits     – most goals passed on (priority-weighted), the default;
+ *   all      – best chance that every goal is inherited;
+ *   affinity – highest lineage affinity.
+ */
+export type RankOrder = "hits" | "all" | "affinity";
+
+/** Best first: filters met, then the chosen objective, then affinity. */
+export function compareLineages(x: Lineage, y: Lineage, order: RankOrder = "hits"): number {
   if (x.ok !== y.ok) return x.ok ? -1 : 1;
-  const s = (y.score ?? 0) - (x.score ?? 0);
-  if (Math.abs(s) > 1e-9) return s;
+  const key = (l: Lineage) => (order === "all" ? (l.allInherit ?? 0) : order === "hits" ? (l.score ?? 0) : 0);
+  const s = key(y) - key(x);
+  if (Math.abs(s) > 1e-12) return s;
   return y.compat.total - x.compat.total || x.p1.trainedId - y.p1.trainedId;
 }
 
@@ -54,6 +64,7 @@ export function optimize(
   filters: SparkFilter[],
   constraints: Constraints = NO_CONSTRAINTS,
   limit = 20,
+  order: RankOrder = "hits",
 ): OptimizeResult {
   const pc = createPlanContext(data, config, goals, filters);
   const t = pc.target.charaId;
@@ -69,7 +80,7 @@ export function optimize(
     for (const r of rentals) consider(mine[i], r);
   }
   const kept = all.filter((l) => l.ok);
-  const ranked = (kept.length ? kept : all).sort(compareLineages).slice(0, limit);
+  const ranked = (kept.length ? kept : all).sort((x, y) => compareLineages(x, y, order)).slice(0, limit);
   return { ranked, context: pc, pairs: all.length, filteredOut: all.length - kept.length };
 }
 
@@ -78,5 +89,5 @@ export function partnersFor(pc: PlanContext, fixed: Veteran, candidates: Veteran
   return candidates
     .filter((v) => usable(v, pc.target.charaId, pc.config, constraints) && validPair(fixed, v))
     .map((v) => evaluate(pc, fixed, v))
-    .sort(compareLineages);
+    .sort((x, y) => compareLineages(x, y));
 }

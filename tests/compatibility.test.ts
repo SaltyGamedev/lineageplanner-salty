@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lineageCompat, sharedG1Wins } from "../src/domain/compatibility";
-import type { Veteran } from "../src/domain/types";
-import { realData, sampleVeterans, tinyData } from "./helpers";
+import { mkVet, realData, sampleVeterans, tinyData } from "./helpers";
 
 describe("relation sums (verified tables)", () => {
   it("sums every group containing all characters", () => {
@@ -27,13 +26,6 @@ describe("relation sums (verified tables)", () => {
   });
 });
 
-export const mkVet = (id: number, chara: number, saddles: number[], parents: [number, number[]][]): Veteran => ({
-  trainedId: id, cardId: chara * 100 + 1, charaId: chara, factorIds: [], winSaddleIds: saddles,
-  stats: { speed: 0, stamina: 0, power: 0, guts: 0, wiz: 0 },
-  aptitudes: { turf: 7, dirt: 1, short: 1, mile: 1, middle: 7, long: 1, nige: 1, senko: 7, sashi: 1, oikomi: 1 },
-  skillIds: [], rankScore: 0, runningStyle: 2, createdAt: "", isLocked: false, useType: 0,
-  parents: parents.map(([c, s]) => ({ cardId: c * 100 + 1, charaId: c, factorIds: [], winSaddleIds: s })) as unknown as Veteran["parents"],
-});
 
 describe("affinity (uma.guide model)", () => {
   it("reproduces uma.guide's numbers for a real lineage", async () => {

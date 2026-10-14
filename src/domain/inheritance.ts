@@ -9,18 +9,13 @@
 // own affinity (see compatibility.ts).
 
 import type { LineageCompat } from "./compatibility";
+import { ACTIVE_RULES } from "./rules";
 import { FactorType } from "./types";
 
-/** Base odds at 0 affinity, indexed by stars − 1 (uma.guide's planner). */
-export const BASE_ODDS: Record<"blue" | "pink" | "green" | "race" | "white", [number, number, number]> = {
-  blue: [0.7, 0.8, 0.9],
-  pink: [0.01, 0.03, 0.05],
-  green: [0.05, 0.1, 0.15],
-  race: [0.01, 0.02, 0.03],
-  white: [0.03, 0.06, 0.09],
-};
+/** Base odds at 0 affinity, indexed by stars − 1 (see rules.ts for sources). */
+export const BASE_ODDS = ACTIVE_RULES.inheritance.baseOdds;
 
-export const INSPIRATIONS = 2;
+export const INSPIRATIONS = ACTIVE_RULES.inheritance.inspirations;
 
 export function oddsKind(type: FactorType): keyof typeof BASE_ODDS {
   switch (type) {
@@ -82,7 +77,7 @@ export const GRADE_S = 8;
  * (strong empirical finding for the career-start boost; inferred for mid-run).
  */
 export function gradesFromPoints(points: number): number {
-  return points >= 10 ? 4 : points >= 7 ? 3 : points >= 4 ? 2 : points >= 1 ? 1 : 0;
+  return ACTIVE_RULES.aptitude.pointSteps.filter((step) => points >= step).length;
 }
 
 /**
@@ -90,8 +85,9 @@ export function gradesFromPoints(points: number): number {
  * count as points; the boost never goes above A (S only comes from mid-run inheritance).
  */
 export function startingGrade(base: number, pinkStars: number): number {
-  if (base >= GRADE_A) return base;
-  return Math.min(base + gradesFromPoints(pinkStars), GRADE_A);
+  const cap = ACTIVE_RULES.aptitude.startCapGrade;
+  if (base >= cap) return base;
+  return Math.min(base + gradesFromPoints(pinkStars), cap);
 }
 
 /** Distribution of the number of successes among independent trials (index = count). */
@@ -109,7 +105,7 @@ export function successDistribution(trials: number[]): number[] {
 }
 
 /** Hidden points a single red-gene proc gives mid-run: 1 to 5 (distribution unknown). */
-export const RED_PROC_POINTS = { min: 1, max: 5 } as const;
+export const RED_PROC_POINTS = ACTIVE_RULES.aptitude.procPoints;
 
 /**
  * Chance to reach `goal` from `start` over the two inspirations, as a range.
@@ -138,6 +134,6 @@ export function aptitudeChance(start: number, goal: number, perTurnChances: numb
  * current model (the exact formula is not known): base × 1.1^n, with base
  * 20% for ○, 25% for ◎ and 40% for the gold version.
  */
-export function sparkGenerationChance(appearances: number, base: 0.2 | 0.25 | 0.4 = 0.2): number {
-  return Math.min(1, base * 1.1 ** appearances);
+export function sparkGenerationChance(appearances: number, base: number = ACTIVE_RULES.sparkGeneration.base.white): number {
+  return Math.min(1, base * ACTIVE_RULES.sparkGeneration.growth ** appearances);
 }

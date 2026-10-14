@@ -12,14 +12,15 @@ import { effectiveConfig, targetContext } from "./config";
 import type { TargetContext } from "./conditions";
 import type { GameData } from "./gameData";
 import { aptitudeChance, chanceAny, procChance, slotAffinities, sparkGenerationChance, startingGrade } from "./inheritance";
+import { ACTIVE_RULES } from "./rules";
 import { APTITUDE_BY_GROUP, type AptitudeKey } from "./sparks";
 import { FactorType, type Card, type Goal, type LineageMember, type PlannerConfig, type SparkFilter, type Veteran } from "./types";
 
 export const SLOTS = ["p1", "p2", "p1g1", "p1g2", "p2g1", "p2g2"] as const;
 export type Slot = (typeof SLOTS)[number];
 
-export const SPARK_BASE = { white: 0.2, double: 0.25, gold: 0.4 } as const;
-export type SparkTier = keyof typeof SPARK_BASE;
+export type SparkTier = "white" | "double" | "gold";
+export const SPARK_BASE: Record<SparkTier, number> = ACTIVE_RULES.sparkGeneration.base;
 
 const versionCache = new WeakMap<GameData, Map<number, SparkTier[]>>();
 
@@ -240,7 +241,7 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
     let color: GoalResult["color"];
     if (g.kind === "race") {
       color = "race";
-      spark = sparkGenerationChance(new Set(matching.map((s) => s.slot)).size);
+      spark = sparkGenerationChance(new Set(matching.map((s) => s.slot)).size, ACTIVE_RULES.sparkGeneration.base.race);
     } else {
       const whites = matching.filter((s) => isWhite(s.type));
       const unique = matching.length > 0 && whites.length === 0 && matching.every((s) => s.type === FactorType.Unique);

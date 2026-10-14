@@ -23,12 +23,17 @@ Only mechanics live on the **Global** server are used. JP-only content (skills, 
 | Career-start aptitude boost from pink ★ (1/4/7/10 → +1…+4, max A) | – | **Strong empirical finding** | Crazyfellow ch. 3 |
 | Mid-run red gene: each proc gives 1–5 hidden points, points → grades as above, per inspiration | – | **Hypothesis** (the guide infers it, no statistics) | Crazyfellow ch. 3 |
 
+All of these values live in one versioned rule set, [`src/domain/rules.ts`](../src/domain/rules.ts) (`global-2026-06-24`), and tests pin them. When Global changes a rule, add a new set with its effective date instead of editing constants across the code.
+
 Superseded and not used: the legacy compatibility system (+1 per shared G1/G2/G3 and title bonuses), obsolete since 24 June 2026.
 
 ## Goals and filters
 
 * **Goals** are what you want the trainee to get: a skill hint (white or a unique skill's inherited version), a race spark, or an aptitude grade (for example Long S).
-  * Pairs are ordered by the priority-weighted mean of the goals' **Inherit** chances, which is the same as ordering by the expected number of goals passed on. A goal marked **!** counts ×3; aptitude goals start at ×3.
+  * You pick how pairs are ordered, because goals can conflict:
+    * **Most goals** (default): the priority-weighted mean of the goals' **Inherit** chances, the same as the expected number of goals passed on. A goal marked **!** counts ×3; aptitude goals start at ×3.
+    * **All goals**: the chance that every goal is inherited.
+    * **Affinity**: the lineage total.
   * Without goals, pairs are ranked by affinity.
   * Next to the order, the planner shows combined chances, which are small when you pick many goals. Goals roll independently, so they multiply:
     * **All inherited** = Π Inherit %.
@@ -53,6 +58,8 @@ lineage total (◎○△):
 The tree shows each parent's **own** affinity (the parent formula without its two `rel(T,P,G)` trio links, which appear on the grandparents), as uma.guide does. The parent's sparks still roll at the full value; hover the number to see both.
 
 One known difference from uma.guide: its saddle table has no entry for **Kawasaki Kinen** (a newer dirt G1), so it never counts that race as a shared win. The game data lists it as a G1 saddle, so the planner does count it, giving 3 more per pair that both won it.
+
+Each link also reports which shared G1s it counts (hover a parent's or grandparent's number in the tree).
 
 `rel(...)` sums the points of every relation group that contains all the listed characters. `race(A,B)` = 3 × the G1 races both horses won. A horse of the trainee's own character adds nothing.
 

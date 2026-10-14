@@ -154,7 +154,11 @@ export function App() {
       <footer className="footer muted small">
         Data: game master.mdb {data.meta.resourceVersion} · race details &amp; portraits from{" "}
         <a href="https://gametora.com/umamusume" target="_blank" rel="noreferrer">GameTora</a> · odds from{" "}
-        <a href="https://uma.guide/roster-viewer/" target="_blank" rel="noreferrer">uma.guide</a> (approximate) · MIT
+        <a href="https://uma.guide/roster-viewer/" target="_blank" rel="noreferrer">uma.guide</a> &amp;{" "}
+        <a href="https://docs.google.com/document/d/1Q3IJKbtkplmuY-PAJMNjYiLtasv0eU0aIBEqp8_C3tg/edit" target="_blank" rel="noreferrer">Crazyfellow's guide</a> ·{" "}
+        <a href="https://github.com/SaltyGamedev/lineageplanner-salty/blob/main/docs/SCORING.md" target="_blank" rel="noreferrer" title="All chances are estimates; see the rule table for sources and evidence">
+          rules: Global, compatibility update 24 Jun 2026
+        </a>{" "}· MIT
       </footer>
     </div>
   );
