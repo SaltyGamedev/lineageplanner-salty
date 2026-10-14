@@ -245,8 +245,9 @@ input, select { background: var(--surface); }
 .goal-table .rm button:hover { color: var(--danger); }
 .goal-table tr.fails td { color: var(--danger); }
 .goal-table td .tier { margin-left: 6px; }
-.from { display: flex; flex-wrap: wrap; gap: 6px; }
-.from > span { display: inline-flex; align-items: center; gap: 2px; }
+/* The flex layout lives on an inner box: display:flex on a <td> breaks the row borders. */
+.from-cells { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.from-cells > span { display: inline-flex; align-items: center; gap: 2px; }
 
 .ranking ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
 .ranking li button { width: 100%; display: flex; align-items: center; gap: 6px; background: none; border-color: transparent; text-align: left; padding: 6px; }

@@ -388,13 +388,15 @@ function GoalTable({ data, l, style, onPriority, onRemoveGoal, onRemoveFilter }:
             <td className="num"><Chance value={r.inherit} /></td>
             <td className="num"><Chance value={r.spark} /></td>
             <td className="from">
-              {r.hits.map((h, i) => (
-                <span key={i} title={`${pct(h.chance)} per inspiration`}>
-                  <Portrait data={data} cardId={l.members[h.slot]?.cardId ?? null} size={20} />
-                  <Stars n={h.stars} />
-                </span>
-              ))}
-              {r.hits.length === 0 && <span className="muted small">none</span>}
+              <div className="from-cells">
+                {r.hits.map((h, i) => (
+                  <span key={i} title={`${pct(h.chance)} per inspiration`}>
+                    <Portrait data={data} cardId={l.members[h.slot]?.cardId ?? null} size={20} />
+                    <Stars n={h.stars} />
+                  </span>
+                ))}
+                {r.hits.length === 0 && <span className="muted small">none</span>}
+              </div>
             </td>
             <td className="rm"><button className="icon" onClick={() => onRemoveGoal(r.key)} aria-label={`Remove ${r.label}`} title="Remove">✕</button></td>
           </tr>
