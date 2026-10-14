@@ -5,9 +5,9 @@ import type { GameData } from "../domain/gameData";
 import { SLOTS, evaluate, filterLabel, goalKey, goalLabel, type GoalResult, type Lineage, type Slot } from "../domain/goals";
 import { optimize } from "../domain/optimizer";
 import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } from "../domain/raceExtras";
-import { resolveTierList } from "../domain/tiers";
+import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { rosterSparks } from "../domain/roster";
-import type { Goal, PlannerConfig, SparkFilter, Veteran } from "../domain/types";
+import type { Goal, PlannerConfig, Priority, SparkFilter, Veteran } from "../domain/types";
 import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct } from "./common";
 import { CourseDiagram, FriendsPicker, GoalPicker, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
 
@@ -149,7 +149,6 @@ export function Planner(props: Props) {
           const key = goalKey(g);
           return (
             <span key={key} className={`goal-chip goal-${g.kind} ${g.priority === 3 ? "prio" : ""}`}>
-              <button className="prio-btn" title="Priority (×3)" onClick={() => updateGoal(key, { priority: g.priority === 3 ? 1 : 3 })}>!</button>
               {goalLabel(data, g)}
               {g.kind === "skill" && (
                 <button className="tier-btn" title="Version your trainee buys (for Spark %): ○ / ◎ / gold" onClick={() => updateGoal(key, { sparkTier: NEXT_TIER[g.sparkTier] })}>
@@ -191,6 +190,7 @@ export function Planner(props: Props) {
               data={data}
               l={current}
               style={eff.style}
+              onPriority={(key, priority) => updateGoal(key, { priority })}
               onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
               onRemoveFilter={(f) => onFilters(filters.filter((x) => !(x.color === f.color && x.groupId === f.groupId)))}
             />
@@ -314,24 +314,73 @@ interface GoalTableProps {
   data: GameData;
   l: Lineage;
   style: PlannerConfig["style"];
+  onPriority: (key: string, priority: Priority) => void;
   onRemoveGoal: (key: string) => void;
   onRemoveFilter: (f: SparkFilter) => void;
 }
 
-function GoalTable({ data, l, style, onRemoveGoal, onRemoveFilter }: GoalTableProps) {
+type SortKey = "tier" | "inherit" | "spark" | "stars";
+
+const starTotal = (r: GoalResult) => r.hits.reduce((a, h) => a + h.stars, 0);
+
+function GoalTable({ data, l, style, onPriority, onRemoveGoal, onRemoveFilter }: GoalTableProps) {
   const tiers = resolveTierList(data, style);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  const tierOf = (r: GoalResult) => (r.goal.kind === "skill" ? (tiers.byGroup.get(r.goal.groupId)?.tier ?? null) : null);
+
+  const rows = useMemo(() => {
+    if (!sort) return l.goals;
+    // Best first by default: tier ascending (T0 first), chances and stars descending. Unranked rows always go last.
+    const value = (r: GoalResult): number | null => {
+      switch (sort.key) {
+        case "tier": { const t = tierOf(r); return t ? TIER_ORDER[t] : null; }
+        case "inherit": return r.inherit;
+        case "spark": return r.spark;
+        case "stars": return starTotal(r);
+      }
+    };
+    const natural = sort.key === "tier" ? 1 : -1;
+    return [...l.goals].sort((a, b) => {
+      const x = value(a), y = value(b);
+      if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+      return (x - y) * natural * sort.dir;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [l.goals, sort, tiers]);
+
+  const head = (key: SortKey, label: string, title: string, cls = "") => (
+    <th className={cls} aria-sort={sort?.key === key ? (sort.dir === 1 ? "descending" : "ascending") : "none"}>
+      <button className="sort-btn" title={title} onClick={() => setSort(sort?.key === key ? (sort.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 })}>
+        {label}
+        <span className="sort-mark">{sort?.key === key ? (sort.dir === 1 ? "▼" : "▲") : ""}</span>
+      </button>
+    </th>
+  );
+
   if (!l.goals.length && !l.filters.length) return <p className="muted small">Add goals to rank pairs by them; until then pairs are ranked by affinity.</p>;
   return (
     <table className="goal-table">
       <thead>
-        <tr><th>Goal</th><th className="num" title="Chance to inherit (or reach the grade) over both inspirations">Inherit</th><th className="num" title="Chance your trainee generates this spark (if it learns the skill / wins the race)">Spark</th><th>From</th><th /></tr>
+        <tr>
+          {head("tier", "Goal", "Sort by tier (best first)")}
+          {head("inherit", "Inherit", "Chance to inherit (or reach the grade) over both inspirations", "num")}
+          {head("spark", "Spark", "Chance your trainee generates this spark (if it learns the skill / wins the race)", "num")}
+          {head("stars", "★", "Sort by total ★ in the lineage", "from")}
+          <th />
+        </tr>
       </thead>
       <tbody>
-        {l.goals.map((r) => (
+        {rows.map((r) => (
           <tr key={r.key}>
             <td>
+              <button
+                className={`prio-btn ${r.goal.priority === 3 ? "on" : ""}`}
+                title={r.goal.priority === 3 ? "High priority (counts ×3): click to lower" : "Normal priority: click to count ×3"}
+                aria-pressed={r.goal.priority === 3}
+                onClick={() => onPriority(r.key, r.goal.priority === 3 ? 1 : 3)}
+              >!</button>
               <span className={`dot chip-${r.color}`} />{r.label}
-              {r.goal.kind === "skill" && <TierBadge tier={tiers.byGroup.get(r.goal.groupId)?.tier ?? null} />}
+              {tierOf(r) && <TierBadge tier={tierOf(r)} />}
               {r.aptitude && (
                 <span className="muted small"> <Grade value={r.aptitude.base} />→<Grade value={r.aptitude.start} /> at start ({r.aptitude.stars}★)</span>
               )}

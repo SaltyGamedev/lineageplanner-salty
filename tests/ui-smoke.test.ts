@@ -31,6 +31,8 @@ describe("UI smoke", () => {
       }),
     );
     expect(html).toContain("Inherit");
+    expect(html).toContain("aria-sort"); // sortable headers
+    expect(html).toContain("prio-btn"); // priority lives in the list
     expect(html).toContain("Best pairs");
   });
 

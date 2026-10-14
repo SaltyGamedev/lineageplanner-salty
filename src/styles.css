@@ -204,9 +204,7 @@ input, select { background: var(--surface); }
   background: var(--surface); border: 1px solid var(--border);
 }
 .goal-chip button { background: none; border: none; padding: 0 5px; color: var(--muted); font-size: 12px; }
-.goal-chip .prio-btn { font-weight: 800; }
 .goal-chip.prio { border-color: var(--warn); }
-.goal-chip.prio .prio-btn { color: var(--warn); }
 .goal-chip .tier-btn { color: var(--accent); font-weight: 700; }
 .goal-chip .x:hover { color: var(--danger); }
 .goal-aptitude { background: color-mix(in srgb, var(--pink) 10%, var(--surface)); }
@@ -235,6 +233,13 @@ input, select { background: var(--surface); }
 .goal-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .goal-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .goal-table .num { text-align: right; width: 64px; }
+.goal-table th.from { width: 1%; }
+.sort-btn { background: none; border: none; padding: 0; font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit; display: inline-flex; gap: 3px; align-items: center; cursor: pointer; }
+.sort-btn:hover { color: var(--accent); }
+.sort-mark { font-size: 8px; width: 8px; }
+.goal-table .num .sort-btn { justify-content: flex-end; }
+.prio-btn { background: none; border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; margin-right: 8px; font-weight: 800; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.prio-btn.on { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .goal-table .rm { width: 28px; text-align: right; }
 .goal-table .rm button { padding: 2px 6px; }
 .goal-table .rm button:hover { color: var(--danger); }
