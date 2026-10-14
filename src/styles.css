@@ -223,7 +223,8 @@ input, select { background: var(--surface); }
 .goal-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .goal-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .goal-table .num { text-align: right; width: 64px; }
-.goal-table th.from { width: 1%; }
+/* The goal name column hugs its content so the ★ column gets the rest and stays on one row. */
+.goal-table th:first-child, .goal-table td:first-child { width: 1%; white-space: nowrap; }
 .sort-btn { background: none; border: none; padding: 0; font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit; display: inline-flex; gap: 3px; align-items: center; cursor: pointer; }
 .sort-btn:hover { color: var(--accent); }
 .sort-mark { font-size: 8px; width: 8px; }
