@@ -77,14 +77,59 @@ export const GRADE_A = 7;
 export const GRADE_S = 8;
 
 /**
- * Starting aptitude after the career-start boost from pink ★ in the lineage
- * (parents + grandparents): ≥1★ +1 grade, ≥4★ +2, ≥7★ +3, ≥10★ +4, never
- * above A (uma.guide's model). Each pink proc at an inspiration then adds one grade.
+ * Grades gained from red-gene points: 1 point = +1 grade, 4 = +2, 7 = +3, 10 = +4.
+ * Source: Crazyfellow's Parenting & Gene Guide, ch. 3 "Red Gene mechanics"
+ * (strong empirical finding for the career-start boost; inferred for mid-run).
+ */
+export function gradesFromPoints(points: number): number {
+  return points >= 10 ? 4 : points >= 7 ? 3 : points >= 4 ? 2 : points >= 1 ? 1 : 0;
+}
+
+/**
+ * Starting aptitude: the pink ★ of that aptitude across parents + grandparents
+ * count as points; the boost never goes above A (S only comes from mid-run inheritance).
  */
 export function startingGrade(base: number, pinkStars: number): number {
-  const bonus = pinkStars >= 10 ? 4 : pinkStars >= 7 ? 3 : pinkStars >= 4 ? 2 : pinkStars >= 1 ? 1 : 0;
   if (base >= GRADE_A) return base;
-  return Math.min(base + bonus, GRADE_A);
+  return Math.min(base + gradesFromPoints(pinkStars), GRADE_A);
+}
+
+/** Distribution of the number of successes among independent trials (index = count). */
+export function successDistribution(trials: number[]): number[] {
+  let dist = [1];
+  for (const p of trials) {
+    const next = new Array(dist.length + 1).fill(0);
+    dist.forEach((q, i) => {
+      next[i] += q * (1 - p);
+      next[i + 1] += q * p;
+    });
+    dist = next;
+  }
+  return dist;
+}
+
+/** Hidden points a single red-gene proc gives mid-run: 1 to 5 (distribution unknown). */
+export const RED_PROC_POINTS = { min: 1, max: 5 } as const;
+
+/**
+ * Chance to reach `goal` from `start` over the two inspirations, as a range.
+ * Each inspiration: every pink spark of the aptitude rolls once; the procs' hidden
+ * points (1–5 each) add up, and the turn's grade gain follows gradesFromPoints.
+ * The point distribution is not known, so `min` assumes every proc gives 1 point
+ * and `max` assumes 5 (ESTIMATE; the guide marks the 1–5 values as inference).
+ */
+export function aptitudeChance(start: number, goal: number, perTurnChances: number[]): { min: number; max: number } {
+  const target = Math.min(goal, GRADE_S);
+  if (start >= target) return { min: 1, max: 1 };
+  const procs = successDistribution(perTurnChances);
+  const chance = (pointsPerProc: number) => {
+    let p = 0;
+    procs.forEach((a, n1) => procs.forEach((b, n2) => {
+      if (start + gradesFromPoints(n1 * pointsPerProc) + gradesFromPoints(n2 * pointsPerProc) >= target) p += a * b;
+    }));
+    return p;
+  };
+  return { min: chance(RED_PROC_POINTS.min), max: chance(RED_PROC_POINTS.max) };
 }
 
 /**

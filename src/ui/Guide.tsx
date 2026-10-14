@@ -42,7 +42,7 @@ const STEPS: Step[] = [
       <>
         <p>
           The <b>Rental</b> switch lets one of a friend's umas fill a parent slot. You can use <b>one rental per career</b>,
-          and the game gives you 5 a day.
+          and the game limits how many you can use per day.
         </p>
         <ul>
           <li>Turn it off to plan a run where you have no rental available.</li>
@@ -59,7 +59,7 @@ const STEPS: Step[] = [
         <p>Press <b>+ Goal</b> to choose what the trainee should inherit:</p>
         <ul>
           <li><b>Skills</b> and <b>Race sparks</b>: the planner ranks pairs by the chance to pass them on.</li>
-          <li><b>Aptitude</b>: for example Long → S. Pink sparks raise the starting grade, and a pink proc adds one more.</li>
+          <li><b>Aptitude</b>: for example Long → S. Pink sparks raise the starting grade (up to A); pink procs during the run add more. Its chance is shown as a range, because how much a proc adds is hidden.</li>
           <li><b>Spark filters</b>: a minimum ★ for blue, pink or green sparks. Pairs below it are dropped.</li>
         </ul>
         <p>

@@ -112,7 +112,27 @@ describe("optimizer", () => {
   });
 });
 
-describe("aptitude model", () => {
+describe("aptitude model (red-gene points, Crazyfellow's guide ch. 3)", () => {
+  it("turns points into grades at 1 / 4 / 7 / 10", async () => {
+    const { gradesFromPoints } = await import("../src/domain/inheritance");
+    expect([0, 1, 3, 4, 6, 7, 9, 10, 15].map(gradesFromPoints)).toEqual([0, 1, 1, 2, 2, 3, 3, 4, 4]);
+  });
+
+  it("gives a range because the points per proc (1–5) are unknown", async () => {
+    const { aptitudeChance } = await import("../src/domain/inheritance");
+    expect(aptitudeChance(7, 8, [])).toEqual({ min: 0, max: 0 });
+    expect(aptitudeChance(8, 8, [])).toEqual({ min: 1, max: 1 });
+    // A → S needs one point in either turn.
+    const one = aptitudeChance(7, 8, [0.5]);
+    expect(one.min).toBeCloseTo(0.75);
+    expect(one.max).toBeCloseTo(0.75);
+    // C → S needs three grades: 1 point per turn only gives two, 5 points per turn gives four.
+    expect(aptitudeChance(5, 8, [1])).toEqual({ min: 0, max: 1 });
+    // Two procs in one turn are 2 points: still one grade (guide example 3).
+    expect(aptitudeChance(5, 7, [1, 1]).min).toBe(1);
+    expect(aptitudeChance(5, 8, [1, 1]).min).toBe(0);
+  });
+
   it("boosts the start grade by pink stars, capped at A", () => {
     expect(startingGrade(5, 0)).toBe(5);
     expect(startingGrade(5, 1)).toBe(6);

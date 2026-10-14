@@ -411,7 +411,7 @@ export function FriendsPicker({ data, rentals, apiKey, onApiKey, onLookup, onRem
   };
   return (
     <Modal title={`Rentals (${rentals.length})`} onClose={onClose}>
-      <p className="muted small">Friends' umas you rented before (from your export). One rental per career, 5 per day.</p>
+      <p className="muted small">Friends' umas you rented before (from your export). One rental per career.</p>
       <div className="vet-list">
         {rentals.map((v) => (
           <div key={v.trainedId} className="vet-row static">

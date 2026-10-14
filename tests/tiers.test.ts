@@ -6,14 +6,15 @@ import { FactorType, type Skill } from "../src/domain/types";
 import { realData } from "./helpers";
 
 describe("tier lists", () => {
-  it("resolves most entries to Global skill groups", () => {
+  it("only contains skills that exist in the Global data", () => {
     const d = realData();
     for (const style of ["nige", "senko", "sashi", "oikomi"] as const) {
       const list = resolveTierList(d, style);
-      const resolved = list.entries.filter((e) => e.groupIds.length > 0);
-      expect(resolved.length / list.entries.length).toBeGreaterThan(0.6);
-      // Entries without a resolved skill must be JP-only skills (they carry a JP name).
-      for (const e of list.entries) if (!e.groupIds.length) expect(e.jp ?? e.label).toBeTruthy();
+      expect(list.entries.length).toBeGreaterThan(10);
+      for (const e of list.entries) {
+        expect(e.groupIds.length, e.label).toBeGreaterThan(0);
+        expect(e.missing, e.label).toEqual([]);
+      }
     }
   });
 

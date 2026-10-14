@@ -40,6 +40,7 @@ export function tinyData(): GameData {
     saddles: {
       1: { id: 1, name: "G1 a", type: 3 }, 2: { id: 2, name: "G1 b", type: 3 },
       3: { id: 3, name: "G3", type: 1 }, 9: { id: 9, name: "G1 c", type: 3 },
+      4: { id: 4, name: "Triple Crown (title)", type: 0 }, 5: { id: 5, name: "G2", type: 2 },
     },
     tracks: {},
     courses: {},

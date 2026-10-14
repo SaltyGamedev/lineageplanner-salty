@@ -7,7 +7,23 @@ A lineage is the trainee plus **two veterans**. Each veteran brings its two reco
 
 Game rules: a parent can't be the trainee's character, and the two parents must be different characters. Veterans you exclude on the Roster tab are skipped.
 
-All chances below are **approximations** from the community model used by [uma.guide](https://uma.guide/roster-viewer/) (lineage planner and [parenting guide](https://uma.guide/guides/parenting-in-umamusume)). The game doesn't publish them.
+All chances below are **approximations**. The game doesn't publish them.
+
+## Rule set: Global, as of 14 October 2026
+
+Only mechanics live on the **Global** server are used. JP-only content (skills, scenarios, mechanics) and superseded rules are left out on purpose. The game data comes from the Global `master.mdb`, so a JP-only skill can't enter a recommendation.
+
+| Rule | Effective | Evidence | Source |
+|---|---|---|---|
+| Relation groups and points, ◎○△ thresholds | – | **Confirmed** (game data) | Global `master.mdb` |
+| Shared G1 wins: +3 each, counted once, parent-to-parent overlap counts; G2/G3 and titles don't | 24 Jun 2026 (Global compatibility overhaul) | **Confirmed** (patch notes as reported) | [Crazyfellow's guide](https://docs.google.com/document/d/1Q3IJKbtkplmuY-PAJMNjYiLtasv0eU0aIBEqp8_C3tg/edit), ch. 1 |
+| Per-horse affinity split (parent vs grandparent links) | – | **Strong empirical finding** | uma.guide planner; Crazyfellow ch. 1 |
+| Inheritance odds = base × (1 + affinity/100), base table below | – | **Strong empirical finding** (patent formula, tested by Polaris) | Crazyfellow, bonus chapter |
+| Spark generation = base × 1.1ⁿ (20% / 25% / 40% / race 20%) | – | **Estimate** (fitted to large datasets) | Crazyfellow ch. 4 (aoneko) |
+| Career-start aptitude boost from pink ★ (1/4/7/10 → +1…+4, max A) | – | **Strong empirical finding** | Crazyfellow ch. 3 |
+| Mid-run red gene: each proc gives 1–5 hidden points, points → grades as above, per inspiration | – | **Hypothesis** (the guide infers it, no statistics) | Crazyfellow ch. 3 |
+
+Superseded and not used: the legacy compatibility system (+1 per shared G1/G2/G3 and title bonuses), obsolete since 24 June 2026.
 
 ## Goals and filters
 
@@ -54,7 +70,7 @@ Chance per inspiration = base × (1 + affinity / 100), capped at 100%:
 
 There are two inspirations per career. For skill and race goals, Inherit = 1 − Π(1 − p)² over every matching spark of the six horses.
 
-**Aptitude goals:** pink ★ of that aptitude across the six horses raise the starting grade (≥1★ +1, ≥4★ +2, ≥7★ +3, ≥10★ +4, never above A). Each pink proc at an inspiration then adds one grade. Inherit = chance of at least the needed number of procs.
+**Aptitude goals:** pink ★ of that aptitude across the six horses raise the starting grade (≥1★ +1, ≥4★ +2, ≥7★ +3, ≥10★ +4, never above A; S only comes mid-run). At each of the two inspirations, every pink spark of that aptitude rolls; each proc gives 1–5 hidden points, the turn's points add up, and grades follow the same 1/4/7/10 steps. How the 1–5 points are distributed is unknown, so aptitude goals show a **range**: the low end assumes every proc rolls 1 point, the high end 5. Ranking and "All inherited" use the low end.
 
 ## Spark generation (Spark %)
 

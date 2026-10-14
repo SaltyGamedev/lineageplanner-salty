@@ -7,9 +7,9 @@
 //
 // Entries list skill names as they appear in the Global game data. Names are
 // resolved to skill groups at runtime, so ○/◎ variants and the gold version
-// share one entry. Skills that are not in the Global data yet (JP-only) stay
-// unresolved and are shown as such; they start counting once a data refresh
-// adds them under the listed name.
+// share one entry. Only skills available on Global are listed: JP-only skills
+// from the sheet were removed, and any entry that doesn't resolve against the
+// current Global data is dropped (it can never reach a recommendation).
 
 import type { GameData } from "./gameData";
 import type { StyleKey } from "./types";
@@ -38,8 +38,6 @@ export interface TierEntry {
   label: string;
   /** Global skill names covered by this entry. */
   skills: string[];
-  /** Japanese name, for skills that may not be on Global yet. */
-  jp?: string;
   note?: string;
 }
 
@@ -60,15 +58,11 @@ const COMMON: TierEntry[] = [
   e("URA", "Racing Spirit: Stamina", { note: "Cheap 0.25 m/s with a stamina drain. Scenario-locked, so keep it in lineages from the start." }),
   e("T1", "Tail Held High", { note: "Very cheap and close to 100% consistent." }),
   e("T1", "Risky Business", { note: "Cheap 0.25 m/s with a stamina drain; best on Sprint and Mile for now." }),
-  e("T3", "High Speed", { note: "3 s 0.15 m/s current-speed skill with a small heal." }),
-  e("T3", "Earth's Blessing", { jp: "地の加護", note: "Grand Masters scenario skill." }),
-  e("T3", "Middle Leg Adept", { jp: "中盤巧者", note: "Generic phase 1 velocity, only 1.8 s." }),
   e("HM", "Greens", { skills: GREENS, note: "Speed > Power > the rest. Race specific, so they matter most for a Champions Meeting." }),
   e("HM", "Straightaway Adept", { note: "Standard 3 s velocity, very easy to get." }),
   e("HM", "Downhill Speedster", { note: "Niche; carryover on some maps." }),
   e("HM", "Homestretch Haste", { note: "Consistent but short (2.4 s) and not mid-leg." }),
   e("HM", "Hesitant [X]", { skills: HESITANT, note: "Mostly Legend Race tech and very one-style meetings." }),
-  e("HM", "Switch Over Pro", { jp: "切り替え上手", note: "Medium only; probably T0.5–T1 for Medium meetings." }),
   e("Extra", "Distance Straightaways/Corners", { skills: DISTANCE_SKILLS, note: "Take the ones the trainee has the aptitude for." }),
   e("Extra", "Unyielding Spirit", { note: "Very cheap early-race velocity." }),
   e("Extra", "Sprinting Gear", { note: "Pretty much always recommended for Sprint." }),
@@ -77,8 +71,7 @@ const COMMON: TierEntry[] = [
 const LATE_BACK: TierEntry[] = [
   e("URA", "Racing Spirit: Power", { note: "Cheap 4 s velocity, only obtainable from parents." }),
   e("T0", "Uma Stan"),
-  e("T0", "Nimble Navigator", { note: "Becomes an anti-block skill as better accelerations appear." }),
-  e("T0.5", "Opening Leg Adept", { jp: "序盤巧者", note: "Early-race velocity is rare; breaks PDM." }),
+  e("T0", "Nimble Navigator"),
   e("T1.5", "Slipstream"),
   e("T1.5", "Playtime's Over"),
   e("T2", "Ramp Up", { note: "Helps overtakes and breaks PDM." }),
@@ -95,7 +88,6 @@ export const TIER_LISTS: Record<StyleKey, TierEntry[]> = {
     e("T0", "Groundwork"),
     e("T1", "Firm Resolve", { note: "Free 0.25 m/s but map dependent; not mid-leg." }),
     e("T1", "Mad Dash", { note: "2.7 s 0.25 m/s mid-leg, drains 4%." }),
-    e("T1", "Opening Leg Adept", { jp: "序盤巧者", note: "Early-race velocity secures position for mid race." }),
     e("T1.5", "Front Runner Straightaways/Corners", { skills: ["Front Runner Straightaways", "Front Runner Corners"], note: "Cheap 3 s velocity; ◎ is a good SP dump." }),
     e("T2", "Playtime's Over"),
     e("T2", "Fast-Paced"),
@@ -107,22 +99,14 @@ export const TIER_LISTS: Record<StyleKey, TierEntry[]> = {
     e("T5", "Restraint", { note: "Expensive Groundwork fodder." }),
     e("HM", "Racing Spirit: Mood", { note: "Wit check; very good for Team Trials." }),
     e("HM", "Uma Stan", { note: "Very recent tech for fronts." }),
-    e("HM", "No Hesitation", { jp: "迷いなし", note: "Long-distance accel." }),
-    e("HM", "Goin' First", { jp: "一番乗り", note: "Medium starting accel." }),
-    e("HM", "Swift Takeoff", { jp: "急発進", note: "Sprint starting accel." }),
-    e("HM", "Ocean's Blessing", { jp: "海の加護", note: "Only matters for top Legend Race play." }),
     e("Extra", "Speed Eater", { note: "Mile; one of the most overtuned skills." }),
     e("Extra", "Productive Plan", { note: "Mile-only early-race velocity." }),
   ],
   senko: [
     ...COMMON,
     ...LATE_BACK,
-    e("T0.5", "Decisive Blow", { jp: "決定打", note: "Consistent final-straight 0.25 m/s." }),
-    e("T0.5", "Restless Step", { jp: "逸る足取り", note: "Early-race velocity; breaks PDM." }),
-    e("T1", "Aggressive", { jp: "アグレッシブ", note: "2.4 s 0.25 m/s mid-leg, 2% drain." }),
     e("T1.5", "Pace Chaser Straightaways/Corners", { skills: ["Pace Chaser Straightaways", "Pace Chaser Corners"], note: "Cheap 3 s velocity; ◎ is a good SP dump." }),
     e("T1.5", "Head-On", { note: "Borderline compulsory on Sprint and Mile." }),
-    e("T2", "Leap Premonition", { jp: "飛躍の予感" }),
     e("T2", "Latch On"),
     e("T2", "On the Attack"),
     e("T4", "Groundwork", { note: "Needs three good greens to be worth it." }),
@@ -130,7 +114,6 @@ export const TIER_LISTS: Record<StyleKey, TierEntry[]> = {
     e("HM", "My True Strength", { note: "Compulsory for Long, nothing else." }),
     e("HM", "Corner Adept"),
     e("HM", "Prudent/IS WIT", { skills: ["Prudent Positioning", "Ignited Spirit WIT"], note: "Possibly useful in recent Legend Races." }),
-    e("HM", "Ocean's Blessing", { jp: "海の加護", note: "Only matters for top Sprint Legend Race play." }),
     e("Extra", "Speed Eater", { note: "Strong on Mile when fronts are rare." }),
     e("Extra", "Productive Plan", { note: "Mile-only early-race velocity." }),
     e("Extra", "All Set", { note: "Long heal; needs an accel on the ace." }),
@@ -139,13 +122,10 @@ export const TIER_LISTS: Record<StyleKey, TierEntry[]> = {
     ...COMMON,
     ...LATE_BACK,
     e("T0.5", "Pedal to the Metal", { note: "Consistent final-straight 0.25 m/s." }),
-    e("T0.5", "Unrestrained Passion", { jp: "溢れる情熱", note: "Early-race velocity; breaks PDM." }),
     e("T1", "Full Throttle", { note: "2.4 s 0.25 m/s mid-leg, 2% drain." }),
     e("T1.5", "Slick Surge", { note: "Borderline compulsory on Sprint and Mile." }),
     e("T1.5", "Late Surger Straightaways/Corners", { skills: ["Late Surger Straightaways", "Late Surger Corners"], note: "Cheap 3 s velocity; ◎ is a good SP dump." }),
     e("T1.5", "1,500,000 CC", { note: "Cheap, but not every map." }),
-    e("T1.5", "Preliminary Preparation", { jp: "下準備", note: "Consistent 2.4 s velocity; breaks PDM." }),
-    e("T2", "Start the Charge", { jp: "進出開始" }),
     e("T2", "Latch On"),
     e("T2", "Position Pilfer", { note: "Consistent 2.4 s mid-leg." }),
     e("T3", "Fearless"),
@@ -160,13 +140,9 @@ export const TIER_LISTS: Record<StyleKey, TierEntry[]> = {
   oikomi: [
     ...COMMON,
     ...LATE_BACK,
-    e("T0.5", "Boiling Blood", { jp: "たぎる血潮", note: "Consistent final-straight 0.25 m/s." }),
     e("T1", "Straightaway Spurt", { note: "The defining End Closer accel." }),
-    e("T1", "No Reluctance", { jp: "惜しみなし", note: "2.4 s 0.25 m/s mid-leg, 2% drain." }),
     e("T1.5", "End Closer Straightaways/Corners", { skills: ["End Closer Straightaways", "End Closer Corners"], note: "Cheap 3 s velocity; ◎ is a good SP dump." }),
-    e("T2", "Sufficient Thrust", { jp: "推力十分" }),
     e("T2", "Masterful Gambit", { note: "Consistent 3 s late-race velocity." }),
-    e("T2", "Sharp Steps", { note: "Accel; realistically Sprint and Mile only." }),
     e("T3", "Breakin' Out"),
     e("T4", "Early Start", { note: "Only relevant for discounts." }),
     e("HM", "Groundwork", { note: "Very recent tech." }),
@@ -209,7 +185,7 @@ export function resolveTierList(data: GameData, style: StyleKey): ResolvedTierLi
     groupsByName.set(key, set);
   }
 
-  const entries: ResolvedTierEntry[] = TIER_LISTS[style].map((entry) => {
+  const entries: ResolvedTierEntry[] = TIER_LISTS[style].flatMap((entry) => {
     const groupIds = new Set<number>();
     const missing: string[] = [];
     for (const name of entry.skills) {
@@ -217,7 +193,8 @@ export function resolveTierList(data: GameData, style: StyleKey): ResolvedTierLi
       if (groups) groups.forEach((g) => groupIds.add(g));
       else missing.push(name);
     }
-    return { ...entry, groupIds: [...groupIds], missing };
+    // Not in the Global data: leave it out entirely.
+    return groupIds.size ? [{ ...entry, groupIds: [...groupIds], missing }] : [];
   });
   entries.sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier] || a.label.localeCompare(b.label));
 

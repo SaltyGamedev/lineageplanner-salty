@@ -66,10 +66,25 @@ describe("affinity (uma.guide model)", () => {
     expect(l.total).toBe(30);
   });
 
-  it("counts only shared G1 wins", () => {
+  it("counts only shared G1 wins, each once (current Global rules since 24 June 2026)", () => {
     const d = tinyData();
     const m = (w: number[]) => ({ cardId: 0, charaId: 1, factorIds: [], winSaddleIds: w });
-    expect(sharedG1Wins(d, m([1, 2, 3, 9]), m([1, 3, 9, 9]))).toBe(2);
+    expect(sharedG1Wins(d, m([]), m([1]))).toBe(0);
+    expect(sharedG1Wins(d, m([1]), m([1]))).toBe(1);
+    expect(sharedG1Wins(d, m([1, 2, 3, 9]), m([1, 3, 9, 9]))).toBe(2); // duplicate 9 counts once
+    // Regression: G2/G3 and titles no longer add compatibility.
+    expect(sharedG1Wins(d, m([3, 4, 5]), m([3, 4, 5]))).toBe(0);
+  });
+
+  it("counts parent-to-parent G1 overlap", () => {
+    const d = tinyData();
+    const a = mkVet(1, 2, [1, 2], [[4, []], [4, []]]);
+    const b = mkVet(2, 3, [1, 2], [[4, []], [4, []]]);
+    const c = mkVet(3, 3, [], [[4, []], [4, []]]);
+    const shared = lineageCompat(d, 1, a, b);
+    const none = lineageCompat(d, 1, a, c);
+    expect(shared.total - none.total).toBe(2 * 3);
+    expect(shared.parents[0].affinity - none.parents[0].affinity).toBe(2 * 3);
   });
 
   it("marks compatibility incomplete when a character is unknown", () => {

@@ -425,7 +425,15 @@ function GoalTable({ data, l, style, onPriority, onTier, onRemoveGoal, onRemoveF
                 <span className="muted small"> <Grade value={r.aptitude.base} />→<Grade value={r.aptitude.start} /> at start ({r.aptitude.stars}★)</span>
               )}
             </td>
-            <td className="num"><Chance value={r.inherit} /></td>
+            <td className="num">
+              <Chance value={r.inherit} />
+              {r.inheritMax != null && r.inheritMax - r.inherit > 0.005 && (
+                <span
+                  className="range"
+                  title={`Each pink proc gives 1–5 hidden points; the split is unknown. ${pct(r.inherit)} if every proc rolls 1 point, up to ${pct(r.inheritMax)} if every proc rolls 5.`}
+                >–{pct(r.inheritMax)}</span>
+              )}
+            </td>
             <td className="num">
               <Chance value={r.spark} />
               {r.goal.kind === "skill" && r.spark != null && (() => {

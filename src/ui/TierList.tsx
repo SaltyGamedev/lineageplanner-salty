@@ -49,10 +49,9 @@ export function TierListView({ data, pool, style: initialStyle, goals, onGoals }
               const count = e.groupIds.reduce((a, g) => a + (owned.get(`skill:${g}`)?.count ?? 0), 0);
               const on = e.groupIds.length > 0 && e.groupIds.every(isGoal);
               return (
-                <button key={e.label} className={`tier-entry ${on ? "on" : ""}`} disabled={!e.groupIds.length} onClick={() => toggle(e.groupIds)} title={e.note}>
+                <button key={e.label} className={`tier-entry ${on ? "on" : ""}`} onClick={() => toggle(e.groupIds)} title={e.note}>
                   <b>{e.label}</b>
-                  {e.jp && <span className="muted small"> {e.jp}</span>}
-                  <span className="muted small">{e.groupIds.length ? (count ? `${count} in roster` : "not in roster") : "not on Global yet"}</span>
+                  <span className="muted small">{count ? `${count} in roster` : "not in roster"}</span>
                 </button>
               );
             })}

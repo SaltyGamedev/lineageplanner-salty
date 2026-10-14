@@ -11,7 +11,7 @@ import { lineageCompat, type LineageCompat } from "./compatibility";
 import { effectiveConfig, targetContext } from "./config";
 import type { TargetContext } from "./conditions";
 import type { GameData } from "./gameData";
-import { GRADE_S, chanceAny, chanceAtLeast, procChance, slotAffinities, sparkGenerationChance, startingGrade } from "./inheritance";
+import { aptitudeChance, chanceAny, procChance, slotAffinities, sparkGenerationChance, startingGrade } from "./inheritance";
 import { APTITUDE_BY_GROUP, type AptitudeKey } from "./sparks";
 import { FactorType, type Card, type Goal, type LineageMember, type PlannerConfig, type SparkFilter, type Veteran } from "./types";
 
@@ -80,6 +80,8 @@ export interface GoalResult {
   label: string;
   color: "white" | "green" | "race" | "pink";
   inherit: number;
+  /** Aptitude goals: upper bound of `inherit` (the hidden red-gene points are unknown; `inherit` is the lower bound). */
+  inheritMax?: number;
   /** null when the trainee can't generate this spark from the lineage (aptitudes, unique skills). */
   spark: number | null;
   hits: SparkHit[];
@@ -221,10 +223,11 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
       const stars = pinks.reduce((a, s) => a + s.stars, 0);
       const base = target.aptitudes[g.key];
       const start = startingGrade(base, stars);
-      const trials = pinks.flatMap((s) => [s.chance, s.chance]);
+      const range = aptitudeChance(start, g.grade, pinks.map((s) => s.chance));
       return {
         goal: g, key: goalKey(g), label, color: "pink",
-        inherit: chanceAtLeast(Math.min(g.grade, GRADE_S) - start, trials),
+        inherit: range.min,
+        inheritMax: range.max,
         spark: null,
         hits: pinks.map(({ slot, stars, chance }) => ({ slot, stars, chance })),
         aptitude: { base, start, stars },
