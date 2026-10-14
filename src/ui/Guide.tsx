@@ -112,7 +112,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>
-          The list on the right ranks every valid pair. Click one to see it in the tree. Choose the order above it:
+          The list above the lineage ranks every valid pair (click its title to fold it away). Click a pair to see it in the tree. Choose the order above it:
           <b> Most goals</b>, <b>All goals</b> or <b>Affinity</b>. The summary above the tree shows:
         </p>
         <ul>

@@ -161,6 +161,20 @@ export function filterLabel(data: GameData, f: SparkFilter): string {
   return `${factorGroupName(data, f.groupId)} ≥${f.minStars}★`;
 }
 
+/** The goal keys a spark counts towards: its hinted skill, its race, or its aptitude. */
+export function factorGoalKeys(data: GameData, factorId: number): string[] {
+  const f = data.factors.get(factorId);
+  if (!f) return [];
+  const keys: string[] = [];
+  const skill = f.skillId != null ? data.skills.get(f.skillId) : undefined;
+  if (skill) keys.push(`skill:${skill.groupId || skill.id}`);
+  if (f.type === FactorType.Race) keys.push(`race:${f.groupId}`);
+  if (f.type === FactorType.Aptitude) {
+    for (const [key, group] of Object.entries(APT_GROUP)) if (group === f.groupId) keys.push(`apt:${key}`);
+  }
+  return keys;
+}
+
 const isWhite = (t: FactorType) => t === FactorType.Skill || t === FactorType.Scenario;
 
 interface ParsedSpark { type: FactorType; groupId: number; skillGroup: number | null; stars: number }

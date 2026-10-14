@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { STYLES, distanceCategory, effectiveConfig, targetContext } from "../domain/config";
 import { RANK_SYMBOL } from "../domain/compatibility";
 import type { GameData } from "../domain/gameData";
-import { SLOTS, evaluate, goalKey, skillVersions, type GoalResult, type Lineage, type Slot, type SparkTier } from "../domain/goals";
+import { SLOTS, evaluate, factorGoalKeys, goalKey, skillVersions, type GoalResult, type Lineage, type Slot, type SparkTier } from "../domain/goals";
 import { optimize, type RankOrder } from "../domain/optimizer";
 import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } from "../domain/raceExtras";
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
@@ -11,6 +11,7 @@ import { FactorType, type Goal, type PlannerConfig, type Priority, type SparkFil
 import { Chance, Empty, Grade, Portrait, Rating, Stars, TierBadge, pct, pctFine } from "./common";
 import { FriendsPicker, GoalPicker, MeetingBanner, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
 import { RaceWinsModal, winsLabel } from "./RaceWins";
+import { readLocal, writeLocal } from "../state/storage";
 
 interface Props {
   data: GameData;
@@ -38,6 +39,12 @@ export function Planner(props: Props) {
   const [open, setOpen] = useState<Open>(null);
   const [manual, setManual] = useState<[number, number] | null>(null);
   const [order, setOrder] = useState<RankOrder>("hits");
+  const [pairsCollapsed, setPairsCollapsedState] = useState(() => readLocal("ui", { pairsCollapsed: false }).pairsCollapsed);
+  const setPairsCollapsed = (v: boolean) => {
+    setPairsCollapsedState(v);
+    writeLocal("ui", { pairsCollapsed: v });
+  };
+
   // Priority (!) goals get their own column and order pairs before Hits, so Hits stays a plain count.
   const skillGoals = goals.filter((g) => g.kind !== "aptitude");
   const hasPrio = skillGoals.some((g) => g.priority > 1);
@@ -158,38 +165,22 @@ export function Planner(props: Props) {
       ) : !current || !result ? (
         <Empty title="No valid pair">Check exclusions, or turn on the rental.</Empty>
       ) : (
-        <div className="result-grid">
-          <section className="panel">
-            <div className="panel-head">
-              <Summary l={current} />
-              <div className="head-actions">
-                {manual && <button className="link" onClick={() => setManual(null)}>Back to best</button>}
-                {skillGoals.length === 0 && <button className="link" onClick={suggest}>Suggest from tier list</button>}
-                <button className="primary small-btn" onClick={() => setOpen("goals")}>+ Goal</button>
-              </div>
-            </div>
-            {!current.ok && <p className="warn small">Doesn't meet the spark filters: no pair does.</p>}
-            <Tree data={data} target={target.id} l={current} goals={current.goals} onPick={(slot) => setOpen({ slot })} />
-            <GoalTable
-              data={data}
-              l={current}
-              style={eff.style}
-              onPriority={(key, priority) => updateGoal(key, { priority })}
-              onTier={(key, sparkTier) => updateGoal(key, { sparkTier })}
-              onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
-            />
-            <SparkPanel
-              l={current}
-              onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
-              onRemoveFilter={(f) => onFilters(filters.filter((x) => !(x.color === f.color && x.groupId === f.groupId)))}
-            />
-          </section>
-
+        <>
           <section className="panel ranking">
             <div className="panel-head">
-              <h2>Best pairs</h2>
+              <button className="collapse-head" aria-expanded={!pairsCollapsed} onClick={() => setPairsCollapsed(!pairsCollapsed)}>
+                <span className="chev">{pairsCollapsed ? "▸" : "▾"}</span>
+                <h2>Best pairs</h2>
+                {pairsCollapsed && (
+                  <span className="muted small">
+                    {data.charaName(current.p1.charaId)} × {data.charaName(current.p2.charaId)}
+                  </span>
+                )}
+              </button>
               <span className="muted small">{result.pairs} scored{result.filteredOut ? ` · ${result.filteredOut} filtered` : ""}</span>
             </div>
+            {!pairsCollapsed && (
+              <>
             <div className="seg order-seg" role="group" aria-label="Order pairs by">
               {([["hits", "Most goals", "Most goals passed on (priority ! goals first)"], ["all", "All goals", "Best chance that every goal is inherited"], ["affinity", "Affinity", "Highest lineage affinity"]] as const).map(([k, label, title]) => (
                 <button key={k} className={order === k ? "on" : ""} title={title} onClick={() => setOrder(k)} disabled={k !== "affinity" && skillGoals.length === 0}>{label}</button>
@@ -236,8 +227,36 @@ export function Planner(props: Props) {
                 );
               })}
             </ol>
+              </>
+            )}
           </section>
-        </div>
+          <section className="panel">
+            <div className="panel-head">
+              <Summary l={current} />
+              <div className="head-actions">
+                {manual && <button className="link" onClick={() => setManual(null)}>Back to best</button>}
+                {skillGoals.length === 0 && <button className="link" onClick={suggest}>Suggest from tier list</button>}
+                <button className="primary small-btn" onClick={() => setOpen("goals")}>+ Goal</button>
+              </div>
+            </div>
+            {!current.ok && <p className="warn small">Doesn't meet the spark filters: no pair does.</p>}
+            <Tree data={data} target={target.id} l={current} goals={current.goals} onPick={(slot) => setOpen({ slot })} />
+            <GoalTable
+              data={data}
+              l={current}
+              style={eff.style}
+              onPriority={(key, priority) => updateGoal(key, { priority })}
+              onTier={(key, sparkTier) => updateGoal(key, { sparkTier })}
+              onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
+            />
+            <SparkPanel
+              l={current}
+              onRemoveGoal={(key) => onGoals(goals.filter((g) => goalKey(g) !== key))}
+              onRemoveFilter={(f) => onFilters(filters.filter((x) => !(x.color === f.color && x.groupId === f.groupId)))}
+            />
+          </section>
+
+        </>
       )}
 
       {/* --------------------------------------------------------- modals */}
@@ -294,18 +313,19 @@ function parentTitle(data: GameData, v: Veteran): string {
 const g1Names = (data: GameData, ids: number[]) => (ids.length ? ids.map((id) => data.saddles.get(id)?.name ?? id).join(", ") : "none");
 const gpShared = (l: Lineage, slot: Slot) => l.compat.parents[slot.startsWith("p1") ? 0 : 1].sharedG1.grandparents[Number(slot[3]) - 1];
 
-/** A horse's blue, pink and green sparks, in that order. */
-function baseSparks(data: GameData, m: { factorIds: number[] }) {
-  const order = { blue: 0, pink: 1, green: 2 } as const;
+const SPARK_ORDER = { blue: 0, pink: 1, green: 2, white: 3, race: 4 } as const;
+type SparkColor = keyof typeof SPARK_ORDER;
+const colorOf = (t: FactorType): SparkColor =>
+  t === FactorType.Stat ? "blue" : t === FactorType.Aptitude ? "pink" : t === FactorType.Unique ? "green" : t === FactorType.Race ? "race" : "white";
+
+/** All of a horse's sparks: blue, pink, green, then white skills and races, each with the goal keys it counts for. */
+function allSparks(data: GameData, m: { factorIds: number[] }) {
   return m.factorIds
-    .map((id) => data.factors.get(id))
-    .flatMap((f) => {
-      if (!f) return [];
-      const color: keyof typeof order | null =
-        f.type === FactorType.Stat ? "blue" : f.type === FactorType.Aptitude ? "pink" : f.type === FactorType.Unique ? "green" : null;
-      return color ? [{ id: f.id, name: f.name, stars: f.stars, color }] : [];
+    .flatMap((id) => {
+      const f = data.factors.get(id);
+      return f ? [{ id: f.id, name: f.name, stars: f.stars, color: colorOf(f.type), keys: factorGoalKeys(data, f.id) }] : [];
     })
-    .sort((a, b) => order[a.color] - order[b.color]);
+    .sort((a, b) => SPARK_ORDER[a.color] - SPARK_ORDER[b.color]);
 }
 
 function Tree({ data, target, l, goals, onPick }: { data: GameData; target: number; l: Lineage; goals: GoalResult[]; onPick: (slot: 0 | 1) => void }) {
@@ -322,7 +342,20 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
     const m = l.members[slot];
     const isParent = slot.length === 2;
     const v = isParent ? (m as Veteran) : null;
-    const hits = goals.flatMap((g) => g.hits.filter((h) => h.slot === slot).map((h) => ({ g, h })));
+    const goalOf = new Map(goals.map((g) => [g.key, g]));
+    const chip = (f: ReturnType<typeof allSparks>[number]) => {
+      const g = f.keys.map((k) => goalOf.get(k)).find(Boolean);
+      const hit = g?.hits.find((h) => h.slot === slot);
+      return (
+        <span
+          key={f.id}
+          className={`mini chip-${f.color} ${g ? "goal-hit" : ""}`}
+          title={`${f.name} ${f.stars}★${g ? ` · goal${hit ? `, ${pct(hit.chance)} per inspiration` : ""}` : ""}`}
+        >
+          {f.name.length > 24 ? f.name.slice(0, 23) + "…" : f.name} <Stars n={f.stars} />
+        </span>
+      );
+    };
     return (
       <div key={slot} className={`node ${isParent ? "parent" : "gp"}`}>
         {m ? (
@@ -349,18 +382,10 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
               {v?.borrowed && <em className="badge rental">rental</em>}
             </div>
             <div className="node-sparks">
-              {baseSparks(data, m).map((f) => (
-                <span key={f.id} className={`mini chip-${f.color}`} title={`${f.name} ${f.stars}★`}>
-                  {f.name.length > 14 ? f.name.slice(0, 13) + "…" : f.name} <Stars n={f.stars} />
-                </span>
-              ))}
+              {allSparks(data, m).filter((f) => SPARK_ORDER[f.color] < 3).map(chip)}
             </div>
             <div className="node-sparks">
-              {hits.map(({ g, h }, i) => (
-                <span key={i} className={`mini chip-${g.color}`} title={`${g.label} ${h.stars}★ · ${pct(h.chance)} per inspiration`}>
-                  {g.label.length > 14 ? g.label.slice(0, 13) + "…" : g.label} <Stars n={h.stars} />
-                </span>
-              ))}
+              {allSparks(data, m).filter((f) => SPARK_ORDER[f.color] >= 3).map(chip)}
             </div>
             <button
               className="wins-btn"
