@@ -10,7 +10,8 @@ import { rosterSparks, sparkableSkillGroups } from "../domain/roster";
 import { APTITUDE_BY_GROUP, STAT_BY_GROUP, STAT_LABEL } from "../domain/sparks";
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { FactorType, type Goal, type PlannerConfig, type SparkFilter, type StyleKey, type Veteran } from "../domain/types";
-import { Grade, Modal, Portrait, TierBadge } from "./common";
+import { Grade, Modal, Portrait, Rating, TierBadge } from "./common";
+import { RaceWinsModal, raceWins, winsLabel } from "./RaceWins";
 
 const norm = (s: string) => s.toLowerCase().normalize("NFKD");
 
@@ -197,34 +198,132 @@ interface VetPickerProps {
   onClose: () => void;
 }
 
+type VetSort = "best" | "affinity" | "score" | "g1" | "newest";
+const VET_SORTS: [VetSort, string][] = [["best", "Best match"], ["affinity", "Affinity"], ["score", "Score"], ["g1", "G1 wins"], ["newest", "Newest"]];
+type SparkColor = "blue" | "pink" | "green";
+const COLOR_OF: Partial<Record<FactorType, SparkColor | "race" | "white">> = {
+  [FactorType.Stat]: "blue",
+  [FactorType.Aptitude]: "pink",
+  [FactorType.Unique]: "green",
+  [FactorType.Race]: "race",
+  [FactorType.Skill]: "white",
+  [FactorType.Scenario]: "white",
+};
+
+/** A veteran's sparks with its two parents', by colour; its own come first. */
+function lineageSparks(data: GameData, v: Veteran) {
+  const out = { blue: [] as { text: string; own: boolean }[], pink: [] as { text: string; own: boolean }[], green: [] as { text: string; own: boolean }[], white: 0, race: 0 };
+  [v, ...v.parents].forEach((m, i) => {
+    for (const id of m?.factorIds ?? []) {
+      const f = data.factors.get(id);
+      const c = f && COLOR_OF[f.type as FactorType];
+      if (!f || !c) continue;
+      if (c === "white" || c === "race") out[c]++;
+      else out[c].push({ text: `${"★".repeat(f.stars)} ${f.name}`, own: i === 0 });
+    }
+  });
+  return out;
+}
+
 export function VeteranPicker({ data, pc, fixed, candidates, excluded, current, onPick, onClose }: VetPickerProps) {
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<VetSort>("best");
+  const [wins, setWins] = useState<Veteran | null>(null);
   const options = useMemo(() => partnersFor(pc, fixed, candidates, { excluded }), [pc, fixed, candidates, excluded]);
-  const shown = options.filter((l) => {
-    const v = l.p2;
-    return !q || norm(`${data.charaName(v.charaId)} ${data.cards.get(v.cardId)?.title ?? ""}`).includes(norm(q));
-  });
+  const g1 = (v: Veteran) => raceWins(data, v).filter((s) => s.type === 3).length;
+  const shown = options
+    .filter((l) => {
+      const v = l.p2;
+      return !q || norm(`${data.charaName(v.charaId)} ${data.cards.get(v.cardId)?.title ?? ""}`).includes(norm(q));
+    })
+    .sort((a, b) => {
+      if (sort === "affinity") return b.compat.parents[1].own - a.compat.parents[1].own;
+      if (sort === "score") return b.p2.rankScore - a.p2.rankScore;
+      if (sort === "g1") return g1(b.p2) - g1(a.p2);
+      if (sort === "newest") return b.p2.createdAt.localeCompare(a.p2.createdAt);
+      return 0;
+    });
   return (
     <Modal title={`Pair with ${data.charaName(fixed.charaId)}`} onClose={onClose} wide>
-      <input className="search" autoFocus placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="vet-tools">
+        <input className="search" autoFocus placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label className="muted small">
+          Sort{" "}
+          <select value={sort} onChange={(e) => setSort(e.target.value as VetSort)}>
+            {VET_SORTS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+        </label>
+      </div>
       <div className="vet-list">
         {shown.slice(0, 150).map((l) => {
           const v = l.p2;
-          return (
-            <button key={v.trainedId} className={`vet-row ${v.trainedId === current.trainedId ? "on" : ""} ${l.ok ? "" : "fails"}`} onClick={() => onPick(l)}>
-              <Portrait data={data} cardId={v.cardId} size={40} />
-              <span className="vet-name">
-                {data.charaName(v.charaId)} {v.borrowed && <em className="badge rental">rental</em>}
-                <small className="muted">
-                  {v.parents.map((g, i) => (g ? <Portrait key={i} data={data} cardId={g.cardId} size={18} /> : null))}
-                </small>
+          const sp = lineageSparks(data, v);
+          const card = data.cards.get(v.cardId);
+          const chip = (color: SparkColor) =>
+            sp[color].length > 0 && (
+              <span className={`mini chip-${color}`} title={sp[color].map((x) => `${x.text}${x.own ? "" : " (grandparent)"}`).join("\n")}>
+                {sp[color].map((x, i) => (
+                  <span key={i} className={x.own ? "own" : "gp"}>{i ? ", " : ""}{x.text}</span>
+                ))}
               </span>
+            );
+          return (
+            <div
+              key={v.trainedId}
+              role="button"
+              tabIndex={0}
+              className={`vet-row vet-rich ${v.trainedId === current.trainedId ? "on" : ""} ${l.ok ? "" : "fails"}`}
+              onClick={() => onPick(l)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onPick(l))}
+            >
+              <Portrait data={data} cardId={v.cardId} size={44} />
+              <div className="vet-main">
+                <div className="vet-title">
+                  <b>{card?.title ? `${card.title} ` : ""}{data.charaName(v.charaId)}</b>
+                  <Rating rank={v.rank} />
+                  {v.borrowed && <em className="badge rental" title={`Rental from ${v.borrowed.trainerName ?? v.borrowed.trainerId}`}>rental</em>}
+                </div>
+                <div className="vet-meta muted small">
+                  {v.rankScore > 0 && <span>Score {v.rankScore.toLocaleString()}</span>}
+                  <span className="vet-own" title="Its own affinity in this lineage (as uma.guide shows it)">Affinity {l.compat.parents[1].own}</span>
+                  {v.createdAt && <span>{v.createdAt.slice(0, 10)}</span>}
+                  <span className="vet-gps" title="Its parents (they come with it)">
+                    {v.parents.map((g, i) => (g ? <Portrait key={i} data={data} cardId={g.cardId} size={18} /> : null))}
+                  </span>
+                </div>
+                <div className="vet-sparks">
+                  {chip("blue")}
+                  {chip("pink")}
+                  {chip("green")}
+                  {sp.white > 0 && <span className="mini chip-white">{sp.white} white</span>}
+                  {sp.race > 0 && <span className="mini chip-race">{sp.race} race</span>}
+                  <button
+                    className="wins-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setWins(v);
+                    }}
+                    title="Show the races it won"
+                  >
+                    {winsLabel(data, v)}
+                  </button>
+                </div>
+              </div>
               <span className="vet-score" title="Expected goals passed on">{l.goals.length ? `${l.expected.toFixed(1)}/${l.goals.length}` : ""}</span>
-              <span className="vet-aff muted">{l.compat.total}</span>
-            </button>
+              <span className="vet-aff muted" title="Lineage affinity with this pair">◎ {l.compat.total}</span>
+            </div>
           );
         })}
       </div>
+      {wins && (
+        <RaceWinsModal
+          data={data}
+          member={wins}
+          shared={raceWins(data, wins).filter((s) => s.type === 3 && fixed.winSaddleIds.includes(s.id)).map((s) => s.id)}
+          sharedWith={data.charaName(fixed.charaId)}
+          onClose={() => setWins(null)}
+        />
+      )}
     </Modal>
   );
 }

@@ -177,6 +177,19 @@ input, select { background: var(--surface); }
 .vet-name small { display: flex; gap: 3px; align-items: center; }
 .vet-score { font-weight: 700; min-width: 42px; text-align: right; }
 .vet-aff { min-width: 34px; text-align: right; font-size: 12px; }
+.vet-tools { display: flex; gap: 10px; align-items: center; }
+.vet-tools .search { flex: 1; }
+.vet-rich { cursor: pointer; border: 1px solid transparent; border-radius: 8px; align-items: flex-start; }
+.vet-rich:focus-visible { outline: 2px solid var(--accent); }
+.vet-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.vet-title { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.vet-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.vet-own { color: var(--pink); font-weight: 700; }
+.vet-gps { display: inline-flex; gap: 2px; }
+.vet-sparks { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.vet-sparks .mini { max-width: 260px; text-overflow: ellipsis; display: inline-block; }
+.vet-sparks .gp { opacity: .65; }
+.vet-rich .vet-score, .vet-rich .vet-aff { align-self: center; }
 .lookup { margin-top: 14px; display: grid; gap: 8px; }
 .lookup input { width: 100%; }
 
