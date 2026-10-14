@@ -51,6 +51,25 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   );
 }
 
+/**
+ * The career rating badge (single_mode_rank id): G … SS+, then UG, UG1–UG9,
+ * UF, UF1–UF9 and so on up to US9.
+ */
+export function rankLabel(rank: number): string {
+  const low = ["G", "G+", "F", "F+", "E", "E+", "D", "D+", "C", "C+", "B", "B+", "A", "A+", "S", "S+", "SS", "SS+"];
+  if (rank >= 1 && rank <= low.length) return low[rank - 1];
+  const i = rank - 19;
+  const letter = "GFEDCBAS"[Math.floor(i / 10)];
+  return letter ? `U${letter}${i % 10 || ""}` : "?";
+}
+
+export function Rating({ rank }: { rank?: number }) {
+  if (rank == null || rank < 1) return null;
+  const label = rankLabel(rank);
+  const tier = rank >= 19 ? "u" : rank >= 15 ? "s" : rank >= 13 ? "a" : "low";
+  return <span className={`rating rating-${tier}`} title={`Rating ${label}`}>{label}</span>;
+}
+
 export function Stars({ n }: { n: number }) {
   return <span className="stars">{"★".repeat(Math.max(0, n))}</span>;
 }

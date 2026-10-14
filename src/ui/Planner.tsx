@@ -8,7 +8,7 @@ import { SEASONS, WEATHERS, defaultMeeting, meetingCourseId, meetingStatus } fro
 import { TIER_ORDER, resolveTierList } from "../domain/tiers";
 import { rosterSparks } from "../domain/roster";
 import { FactorType, type Goal, type PlannerConfig, type Priority, type SparkFilter, type Veteran } from "../domain/types";
-import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct, pctFine } from "./common";
+import { Chance, Empty, Grade, Portrait, Rating, Stars, TierBadge, pct, pctFine } from "./common";
 import { FriendsPicker, GoalPicker, MeetingBanner, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
 import { RaceWinsModal, winsLabel } from "./RaceWins";
 
@@ -331,16 +331,19 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
             <div className="node-name">{data.charaName(m.charaId)}</div>
             <div className="node-meta">
               {isParent ? (
-                <span
-                  className="aff"
-                  title={`Own affinity ${l.compat.parents[slot === "p1" ? 0 : 1].own} (as uma.guide shows it). Its sparks roll at ${l.affinity[slot]}, which adds the links with its two grandparents.\nShared G1s with the other parent (${l.compat.parents[slot === "p1" ? 0 : 1].sharedG1.pair.length}): ${g1Names(data, l.compat.parents[slot === "p1" ? 0 : 1].sharedG1.pair)}`}
-                >
-                  {l.compat.parents[slot === "p1" ? 0 : 1].own}
-                </span>
+                <>
+                  <span
+                    className="aff"
+                    title={`Own affinity ${l.compat.parents[slot === "p1" ? 0 : 1].own} (as uma.guide shows it). Its sparks roll at ${l.affinity[slot]}, which adds the links with its two grandparents.\nShared G1s with the other parent (${l.compat.parents[slot === "p1" ? 0 : 1].sharedG1.pair.length}): ${g1Names(data, l.compat.parents[slot === "p1" ? 0 : 1].sharedG1.pair)}`}
+                  >
+                    {l.compat.parents[slot === "p1" ? 0 : 1].own}
+                  </span>
+                  <Rating rank={m.rank} />
+                </>
               ) : (
                 <>
                   <span className="aff" title="Affinity of this grandparent: its link with the trainee and parent, plus 3 per G1 it shares with the parent.">{l.affinity[slot]}</span>
-                  <button className="g1" onClick={() => setWins(slot)} title={`G1s shared with the parent: ${g1Names(data, gpShared(l, slot))}\nClick to see all its wins.`}>{gpShared(l, slot).length} G1</button>
+                  <Rating rank={m.rank} />
                 </>
               )}
               {v?.borrowed && <em className="badge rental">rental</em>}
@@ -359,11 +362,13 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
                 </span>
               ))}
             </div>
-            {isParent && (
-              <button className="wins-btn" onClick={() => setWins(slot)} title="Show the races it won">
-                {winsLabel(data, m)}
-              </button>
-            )}
+            <button
+              className="wins-btn"
+              onClick={() => setWins(slot)}
+              title={isParent ? "Show the races it won" : `G1s shared with the parent (${gpShared(l, slot).length}): ${g1Names(data, gpShared(l, slot))}\nClick to see all its wins.`}
+            >
+              {winsLabel(data, m)}
+            </button>
             {isParent && <button className="swap" onClick={() => onPick(slot === "p1" ? 0 : 1)}>Change</button>}
           </>
         ) : (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lineageCompat, sharedG1Wins } from "../src/domain/compatibility";
 import { placeWins, raceWins, winsLabel } from "../src/ui/RaceWins";
+import { rankLabel } from "../src/ui/common";
 import { mkVet, realData, sampleVeterans, tinyData } from "./helpers";
 
 describe("relation sums (verified tables)", () => {
@@ -122,5 +123,11 @@ describe("race wins", () => {
     const byName = (n: string) => [...d.saddles.values()].find((s) => s.name === n)!;
     const at = placeWins([byName("Japan C."), byName("Mile Ch."), byName("Arima Kinen")]);
     expect([...at.keys()].sort()).toEqual(["2-11-2", "2-12-2", "3-11-2"]);
+  });
+});
+
+describe("rating labels", () => {
+  it("follows the game's rank table", () => {
+    expect([1, 2, 13, 14, 16, 17, 18, 19, 20, 28, 29, 30, 39].map(rankLabel)).toEqual(["G", "G+", "A", "A+", "S+", "SS", "SS+", "UG", "UG1", "UG9", "UF", "UF1", "UE"]);
   });
 });

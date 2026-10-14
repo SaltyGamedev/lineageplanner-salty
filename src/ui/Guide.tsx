@@ -80,8 +80,8 @@ const STEPS: Step[] = [
           <li>The first chips are the horse's blue, pink and green sparks; the chips below them are the sparks that match your goals.</li>
           <li>Goal sparks look like <span className="mini chip-white">Uma Stan <Stars n={2} /></span></li>
           <li><b>Change</b> on a parent lets you pick another veteran to pair with the other parent.</li>
-          <li>A grandparent can't be changed alone: it belongs to its parent. "15 G1" is how many G1s it shares with that parent (+3 affinity each).</li>
-          <li>Click "23 G1 · 23 wins" on a parent, or "15 G1" on a grandparent, to see its wins on the race calendar. Races it shares with the other parent (or its parent) are outlined.</li>
+          <li>A grandparent can't be changed alone: it belongs to its parent. Each G1 it shares with that parent adds 3 affinity.</li>
+          <li>Click "23 G1 · 23 wins" on any horse to see its wins on the race calendar. G1s it shares with the other parent (for a grandparent: with its parent) are outlined.</li>
         </ul>
       </>
     ),
