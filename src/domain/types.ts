@@ -84,7 +84,15 @@ export interface Factor {
 export interface Saddle {
   id: number;
   name: string;
+  /** win_saddle_type: 0 title, 1 G3, 2 G2, 3 G1. */
   type: number;
+  /** Race saddles only: the race, its date, and the career years it can be run in. */
+  raceId?: number;
+  /** 1 Junior, 2 Classic, 3 Senior. */
+  years?: number[];
+  month?: number;
+  /** 1 = first half of the month, 2 = second. */
+  half?: number;
 }
 
 export interface Course {

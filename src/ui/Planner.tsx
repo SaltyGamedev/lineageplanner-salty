@@ -10,6 +10,7 @@ import { rosterSparks } from "../domain/roster";
 import { FactorType, type Goal, type PlannerConfig, type Priority, type SparkFilter, type Veteran } from "../domain/types";
 import { Chance, Empty, Grade, Portrait, Stars, TierBadge, pct, pctFine } from "./common";
 import { FriendsPicker, GoalPicker, MeetingBanner, RacePicker, TraineePicker, VeteranPicker } from "./pickers";
+import { RaceWinsModal, winsLabel } from "./RaceWins";
 
 interface Props {
   data: GameData;
@@ -308,6 +309,15 @@ function baseSparks(data: GameData, m: { factorIds: number[] }) {
 }
 
 function Tree({ data, target, l, goals, onPick }: { data: GameData; target: number; l: Lineage; goals: GoalResult[]; onPick: (slot: 0 | 1) => void }) {
+  const [wins, setWins] = useState<Slot | null>(null);
+  /** The horse a member's shared G1s are counted against: the other parent, or a grandparent's own parent. */
+  const sharedFor = (slot: Slot) => {
+    const parent = slot.startsWith("p1") ? 0 : 1;
+    if (slot.length === 2) {
+      return { shared: l.compat.parents[parent].sharedG1.pair, with: data.charaName(l.members[parent ? "p1" : "p2"]?.charaId ?? null) };
+    }
+    return { shared: gpShared(l, slot), with: data.charaName(l.members[parent ? "p2" : "p1"]?.charaId ?? null) };
+  };
   const node = (slot: Slot) => {
     const m = l.members[slot];
     const isParent = slot.length === 2;
@@ -330,7 +340,7 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
               ) : (
                 <>
                   <span className="aff" title="Affinity of this grandparent: its link with the trainee and parent, plus 3 per G1 it shares with the parent.">{l.affinity[slot]}</span>
-                  <span className="g1" title={`G1s shared with the parent: ${g1Names(data, gpShared(l, slot))}`}>{gpShared(l, slot).length} G1</span>
+                  <button className="g1" onClick={() => setWins(slot)} title={`G1s shared with the parent: ${g1Names(data, gpShared(l, slot))}\nClick to see all its wins.`}>{gpShared(l, slot).length} G1</button>
                 </>
               )}
               {v?.borrowed && <em className="badge rental">rental</em>}
@@ -349,6 +359,11 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
                 </span>
               ))}
             </div>
+            {isParent && (
+              <button className="wins-btn" onClick={() => setWins(slot)} title="Show the races it won">
+                {winsLabel(data, m)}
+              </button>
+            )}
             {isParent && <button className="swap" onClick={() => onPick(slot === "p1" ? 0 : 1)}>Change</button>}
           </>
         ) : (
@@ -362,6 +377,9 @@ function Tree({ data, target, l, goals, onPick }: { data: GameData; target: numb
       <div className="tree-target"><Portrait data={data} cardId={target} size={64} /></div>
       <div className="tree-parents">{node("p1")}{node("p2")}</div>
       <div className="tree-gps">{SLOTS.slice(2).map(node)}</div>
+      {wins && l.members[wins] && (
+        <RaceWinsModal data={data} member={l.members[wins]!} shared={sharedFor(wins).shared} sharedWith={sharedFor(wins).with} onClose={() => setWins(null)} />
+      )}
     </div>
   );
 }

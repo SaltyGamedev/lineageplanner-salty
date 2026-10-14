@@ -294,7 +294,28 @@ input, select { background: var(--surface); }
 .stat > span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
 .stat b.compat { font-size: 18px; }
 .order-seg { margin-bottom: 10px; }
-.g1 { font-size: 10.5px; color: var(--muted); }
+.g1 { font-size: 10.5px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+.g1:hover { color: var(--text); }
+.wins-btn { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+
+/* Race wins pop-up: three career years, each a 4 × 6 grid of half-months. */
+.wins-head { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; font-weight: 600; }
+.wins-years { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.wins-year { background: var(--surface-2); border-radius: 10px; overflow: hidden; }
+.wins-year h3 { margin: 0; padding: 6px; text-align: center; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.wins-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 50px; gap: 4px; padding: 6px; }
+.wins-cell { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; min-height: 0; }
+.wins-cell .win { flex: 0 1 auto; min-height: 0; display: flex; }
+.wins-date { font-size: 9.5px; color: var(--muted); }
+.win { border-radius: 5px; padding: 1px; line-height: 0; }
+.win img { width: auto; max-width: 100%; height: auto; max-height: 100%; aspect-ratio: 2; border-radius: 4px; }
+.wins-cell .win img { height: 32px; }
+.win-name { display: block; line-height: 1.2; font-size: 10px; text-align: center; padding: 3px; background: var(--surface); border-radius: 4px; }
+.win-shared, .win-key { box-shadow: 0 0 0 2px var(--accent); }
+.win-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 2px; }
+.wins-other { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.wins-other .win { width: 64px; }
+@media (max-width: 720px) { .wins-years { grid-template-columns: minmax(0, 1fr); } }
 
 /* Best pairs: header and rows share one grid so the columns line up. */
 .ranking ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }

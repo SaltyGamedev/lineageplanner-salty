@@ -46,7 +46,7 @@ python3 scripts/ingest/fetch_images.py public/data/game-data.json public/img/car
 | `skill_data` | rarity, group, activation conditions (`precondition_1/2`, `condition_1/2`) |
 | `succession_factor`, `succession_factor_effect` | spark star count, type, group; effect target 41 gives the hinted skill |
 | `succession_relation`, `succession_relation_member`, `succession_relation_rank` | compatibility groups, points and the △○◎ thresholds |
-| `single_mode_wins_saddle` | win saddles (for the shared-wins bonus) |
+| `single_mode_wins_saddle`, `single_mode_program` | win saddles (for the shared-G1 bonus); for race saddles also the race, its date and the career years it runs in (`race_permission` 1 Junior, 2 Classic, 3 Classic and Senior, 4 Senior), used by the race-wins calendar |
 | `race`, `race_course_set` | races, tracks, course distance, surface and direction |
 
 The factor group to stat/aptitude mapping is checked against the factor names (text category 147): groups 1–5 are Speed…Wit, 11/12 are Turf/Dirt, 21–24 are Front Runner…End Closer, and 31–34 are Sprint…Long.
@@ -57,7 +57,7 @@ The factor group to stat/aptitude mapping is checked against the factor names (t
 
 * **The Global Champions Meeting schedule:** name, dates, track, distance, surface, ground condition, season and weather. Picking a meeting fills in the race.
 * **The next two meetings:** Global runs the JP meetings in the same order (Global CM 20 matches JP CM 20 exactly), so the next JP entries are added as `upcoming`, with no date, and are labelled "expected from the JP order" in the app. This is a schedule projection, not a game mechanic; nothing JP-only enters the calculations.
-* **Banners:** downloaded once by `fetch_images.py` into `public/img/cm/` (the JP banner, `<id>-jp.png`, for upcoming meetings until Global has its own).
+* **Banners:** downloaded once by `fetch_images.py` into `public/img/cm/` (the JP banner, `<id>-jp.png`, for upcoming meetings until Global has its own). Race banners for every G1/G2/G3 saddle go into `public/img/races/<race id>.png`; a race held at another venue some years reuses the banner of its first race id.
 * **Per course:** whether the layout has an uphill and/or a downhill (used by slope conditions), plus its corner, straight and slope spans (used to draw the course diagram).
 
 The refresh workflow runs it daily. A GameTora outage keeps the previous file. Course ids are the game's `race_course_set` ids, and a test checks that every meeting maps to a course in the game data.

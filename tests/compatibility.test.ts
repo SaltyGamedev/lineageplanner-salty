@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lineageCompat, sharedG1Wins } from "../src/domain/compatibility";
+import { placeWins, raceWins, winsLabel } from "../src/ui/RaceWins";
 import { mkVet, realData, sampleVeterans, tinyData } from "./helpers";
 
 describe("relation sums (verified tables)", () => {
@@ -91,5 +92,35 @@ describe("affinity (uma.guide model)", () => {
     const l = lineageCompat(realData(), 1001, vets[0], vets[1]);
     expect(l.total).toBeGreaterThan(0);
     expect(l.parents[0].affinity).toBeGreaterThanOrEqual(l.parents[0].grandparents[0]);
+  });
+});
+
+describe("race wins", () => {
+  it("counts G1s and race wins, without titles or duplicates", () => {
+    const d = tinyData();
+    const v = mkVet(1, 1, [1, 2, 3, 4, 5, 2], []);
+    expect(raceWins(d, v).map((s) => s.id)).toEqual([1, 2, 3, 5]);
+    expect(winsLabel(d, v)).toBe("2 G1 · 4 wins");
+  });
+
+  it("places every real race saddle on the calendar", () => {
+    const d = realData();
+    const races = [...d.saddles.values()].filter((s) => s.type >= 1 && s.raceId != null);
+    expect(races.length).toBeGreaterThan(150);
+    for (const s of races) {
+      expect(s.years!.length).toBeGreaterThan(0);
+      expect(s.years!.every((y) => y >= 1 && y <= 3)).toBe(true);
+      expect(s.month).toBeGreaterThanOrEqual(1);
+      expect(s.month).toBeLessThanOrEqual(12);
+    }
+    const arima = [...d.saddles.values()].find((s) => s.name === "Arima Kinen")!;
+    expect([arima.years, arima.month, arima.half]).toEqual([[2, 3], 12, 2]);
+  });
+
+  it("moves a race that clashes with another to its next possible year", () => {
+    const d = realData();
+    const byName = (n: string) => [...d.saddles.values()].find((s) => s.name === n)!;
+    const at = placeWins([byName("Japan C."), byName("Mile Ch."), byName("Arima Kinen")]);
+    expect([...at.keys()].sort()).toEqual(["2-11-2", "2-12-2", "3-11-2"]);
   });
 });

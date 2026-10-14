@@ -125,6 +125,22 @@ def build(mdb: Path, meta_extra: dict) -> dict:
         sid: {"id": sid, "name": saddle_names.get(sid, str(sid)), "type": stype}
         for sid, stype in q("select id, win_saddle_type from single_mode_wins_saddle")
     }
+    # Race saddles (G3/G2/G1) map to one race. Record its date and the career
+    # years it can be run in: race_permission 1 = Junior, 2 = Classic,
+    # 3 = Classic and Senior, 4 = Senior.
+    years_of = {1: [1], 2: [2], 3: [2, 3], 4: [3]}
+    slots = defaultdict(list)
+    for sid, instance, perm, month, half in q(
+        "select s.id, s.race_instance_id_1, p.race_permission, p.month, p.half"
+        " from single_mode_wins_saddle s join single_mode_program p on p.race_instance_id = s.race_instance_id_1"
+        " where s.win_saddle_type in (1, 2, 3)"
+    ):
+        for year in years_of.get(perm, []):
+            slots[sid].append((year, month, half, instance // 100))
+    for sid, options in slots.items():
+        _, month, half, race = min(options)
+        years = sorted({y for y, m, h, _ in options if (m, h) == (month, half)})
+        saddles[sid].update(raceId=race, years=years, month=month, half=half)
 
     tracks = texts(con, TXT_TRACK_SHORT)
     courses = {
