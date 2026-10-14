@@ -46,9 +46,14 @@ export function validPair(a: Veteran, b: Veteran): boolean {
  */
 export type RankOrder = "hits" | "all" | "affinity";
 
-/** Best first: filters met, then the chosen objective, then affinity. */
+/** Aptitude targets are compared on the whole percent the list shows, so ties fall through to the goals. */
+export const aptBucket = (l: Lineage) => (l.aptScore == null ? 0 : Math.round(l.aptScore * 100));
+
+/** Best first: filters met, then aptitude targets, then the chosen objective, then affinity. */
 export function compareLineages(x: Lineage, y: Lineage, order: RankOrder = "hits"): number {
   if (x.ok !== y.ok) return x.ok ? -1 : 1;
+  const apt = aptBucket(y) - aptBucket(x);
+  if (apt !== 0) return apt;
   const key = (l: Lineage) => (order === "all" ? (l.allInherit ?? 0) : order === "hits" ? (l.score ?? 0) : 0);
   const s = key(y) - key(x);
   if (Math.abs(s) > 1e-12) return s;

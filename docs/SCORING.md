@@ -29,9 +29,11 @@ Superseded and not used: the legacy compatibility system (+1 per shared G1/G2/G3
 
 ## Goals and filters
 
-* **Goals** are what you want the trainee to get: a skill hint (white or a unique skill's inherited version), a race spark, or an aptitude grade (for example Long S).
+* **Goals** are what you want the trainee to get: a skill hint (white or a unique skill's inherited version) or a race spark. Only goals get an Inherit % and Spark %, and only goals count in Hits, All inherited and All sparks.
+* **Aptitude targets** (an aptitude grade such as Long S) and **spark filters** are about sparks, not goals. They show in a separate Sparks box.
+  * Aptitude targets rank pairs **first**: by the mean chance (low end) of reaching them, rounded to the whole percent shown. Pairs with the same % are ordered by the chosen objective.
   * You pick how pairs are ordered, because goals can conflict:
-    * **Most goals** (default): the priority-weighted mean of the goals' **Inherit** chances, the same as the expected number of goals passed on. A goal marked **!** counts ×3; aptitude goals start at ×3.
+    * **Most goals** (default): the priority-weighted mean of the goals' **Inherit** chances, the same as the expected number of goals passed on. A goal marked **!** counts ×3.
     * **All goals**: the chance that every goal is inherited.
     * **Affinity**: the lineage total.
   * Without goals, pairs are ranked by affinity.

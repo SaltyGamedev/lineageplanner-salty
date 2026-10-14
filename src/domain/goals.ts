@@ -103,15 +103,20 @@ export interface Lineage {
   members: Record<Slot, LineageMember | null>;
   compat: LineageCompat;
   affinity: Record<Slot, number>;
+  /** Skill and race-spark goals: the only ones with Inherit % and Spark %. */
   goals: GoalResult[];
+  /** Aptitude targets (pink sparks), shown and ranked separately from the goals. */
+  aptitudes: GoalResult[];
   filters: FilterResult[];
   /** All filters met. */
   ok: boolean;
-  /** Priority-weighted mean of goal chances, 0..100; null without goals. Only used to order pairs. */
+  /** Mean chance (low end) of reaching the aptitude targets; null without targets. Ranks before the goals. */
+  aptScore: number | null;
+  /** Priority-weighted mean of the skill/race goal chances, 0..100; null without goals. Only used to order pairs. */
   score: number | null;
-  /** Expected number of goals passed on (sum of Inherit chances). */
+  /** Expected number of skill/race goals passed on (sum of Inherit chances). */
   expected: number;
-  /** Chance that every goal is inherited (goals roll independently); null without goals. */
+  /** Chance that every skill/race goal is inherited (they roll independently); null without goals. */
   allInherit: number | null;
   /** Chance that the trainee generates every goal that has a Spark % (if it learns them). */
   allSpark: { chance: number; goals: number } | null;
@@ -217,7 +222,7 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
     for (const f of relevantSparks(pc, m)) sparks.push({ slot, type: f.type, groupId: f.groupId, skillGroup: f.skillGroup, stars: f.stars, chance: procChance(f.type, f.stars, affinity[slot]) });
   }
 
-  const goals: GoalResult[] = pc.goals.map((g) => {
+  const results: GoalResult[] = pc.goals.map((g) => {
     const label = pc.labels.get(goalKey(g)) ?? goalLabel(data, g);
     if (g.kind === "aptitude") {
       const pinks = sparks.filter((s) => s.type === FactorType.Aptitude && s.groupId === APT_GROUP[g.key]);
@@ -259,11 +264,15 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
     return { filter: f, label: pc.labels.get(`filter:${f.color}:${f.groupId}`) ?? filterLabel(data, f), stars, ok: stars >= f.minStars };
   });
 
+  // Pink aptitude targets are not "goals": they get their own section and rank first.
+  const aptitudes = results.filter((r) => r.goal.kind === "aptitude");
+  const goals = results.filter((r) => r.goal.kind !== "aptitude");
   const weight = goals.reduce((a, r) => a + r.goal.priority, 0);
   const score = weight > 0 ? (100 * goals.reduce((a, r) => a + r.goal.priority * r.inherit, 0)) / weight : null;
   const withSpark = goals.filter((r) => r.spark != null);
   return {
-    p1, p2, members, compat, affinity, goals, filters, ok: filters.every((f) => f.ok), score,
+    p1, p2, members, compat, affinity, goals, aptitudes, filters, ok: filters.every((f) => f.ok), score,
+    aptScore: aptitudes.length ? aptitudes.reduce((a, r) => a + r.inherit, 0) / aptitudes.length : null,
     expected: goals.reduce((a, r) => a + r.inherit, 0),
     allInherit: goals.length ? goals.reduce((a, r) => a * r.inherit, 1) : null,
     allSpark: withSpark.length ? { chance: withSpark.reduce((a, r) => a * (r.spark as number), 1), goals: withSpark.length } : null,

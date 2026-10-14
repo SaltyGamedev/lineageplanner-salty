@@ -97,11 +97,32 @@ describe("optimizer", () => {
     const vets = sampleVeterans();
     const pc = createPlanContext(d, cfg, [{ kind: "aptitude", key: "long", grade: GRADE_S, priority: 3 }], []);
     const l = evaluate(pc, vets[1], vets[2]);
-    const r = l.goals[0];
+    // Aptitude targets are kept apart from the skill goals.
+    expect(l.goals).toHaveLength(0);
+    expect(l.allInherit).toBeNull();
+    expect(l.aptScore).toBeCloseTo(l.aptitudes[0].inherit);
+    const r = l.aptitudes[0];
     expect(r.aptitude!.start).toBe(startingGrade(r.aptitude!.base, r.aptitude!.stars));
     expect(r.inherit).toBeGreaterThanOrEqual(0);
     expect(r.inherit).toBeLessThanOrEqual(1);
     expect(r.hits.every((h) => h.chance > 0)).toBe(true);
+  });
+
+  it("ranks aptitude targets before skill goals, but leaves them out of Hits and All", () => {
+    const d = realData();
+    const vets = sampleVeterans();
+    const skill = [...rosterSparks(d, vets).values()].find((o) => o.kind === "skill")!;
+    const goals: Goal[] = [
+      { kind: "skill", groupId: skill.groupId, priority: 1, sparkTier: "white" },
+      { kind: "aptitude", key: "long", grade: 8, priority: 3 },
+    ];
+    const res = optimize(d, vets, [], cfg, goals, [], undefined, 99);
+    const buckets = res.ranked.map((l) => Math.round(l.aptScore! * 100));
+    expect([...buckets].sort((a, b) => b - a)).toEqual(buckets);
+    for (const l of res.ranked) {
+      expect(l.goals.map((g) => g.goal.kind)).toEqual(["skill"]);
+      expect(l.expected).toBeCloseTo(l.goals[0].inherit);
+    }
   });
 
   it("lists partners for a fixed parent, best first", () => {

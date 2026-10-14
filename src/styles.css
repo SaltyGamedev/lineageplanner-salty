@@ -315,3 +315,14 @@ input, select { background: var(--surface); }
 .rank-hits { font-weight: 700; }
 .rank-all { font-size: 12px; }
 .rank-aff { font-size: 12px; color: var(--muted); }
+.rank-row.with-apt { grid-template-columns: 18px minmax(0, 1fr) 40px 48px 44px 56px; }
+.rank-apt { font-size: 12px; color: var(--pink); font-weight: 600; }
+.spark-panel { margin-top: 14px; }
+.spark-panel h3 { margin-top: 0; }
+.spark-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
+.spark-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--chip) 9%, var(--surface-2)); font-size: 13px; flex-wrap: wrap; }
+.spark-item .dot { margin-right: 0; }
+.spark-item .spark-val { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.spark-item .range { font-size: 11px; color: var(--muted); }
+.spark-item.fails .spark-val { color: var(--danger); }
+.spark-item button.icon:hover { color: var(--danger); }

@@ -58,9 +58,10 @@ const STEPS: Step[] = [
       <>
         <p>Press <b>+ Goal</b> to choose what the trainee should inherit:</p>
         <ul>
-          <li><b>Skills</b> and <b>Race sparks</b>: the planner ranks pairs by the chance to pass them on.</li>
+          <li><b>Skills</b> and <b>Race sparks</b> are your goals: they get an Inherit % and Spark % and the planner ranks pairs by them.</li>
           <li><b>Aptitude</b>: for example Long → S. Pink sparks raise the starting grade (up to A); pink procs during the run add more. Its chance is shown as a range, because how much a proc adds is hidden.</li>
-          <li><b>Spark filters</b>: a minimum ★ for blue, pink or green sparks. Pairs below it are dropped.</li>
+          <li><b>Spark filters</b>: a minimum ★ for blue, pink or green sparks (for example dirt ★ to keep a loop's affinity up). Pairs below it are dropped.</li>
+          <li>Aptitude targets and spark filters show in their own <b>Sparks</b> box under the goal table, not as goals. Aptitude targets rank first.</li>
         </ul>
         <p>
           Skills show a tier badge <TierBadge tier="T1" /> from the community list and "race ✓" if they fit your race.
