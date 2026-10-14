@@ -203,7 +203,7 @@ export function VeteranPicker({ data, pc, fixed, candidates, excluded, current, 
                   {v.parents.map((g, i) => (g ? <Portrait key={i} data={data} cardId={g.cardId} size={18} /> : null))}
                 </small>
               </span>
-              <span className="vet-score">{l.score != null ? `${Math.round(l.score)}%` : ""}</span>
+              <span className="vet-score" title="Expected goals passed on">{l.goals.length ? `${l.expected.toFixed(1)}/${l.goals.length}` : ""}</span>
               <span className="vet-aff muted">{l.compat.total}</span>
             </button>
           );

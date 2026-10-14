@@ -125,6 +125,21 @@ describe("optimizer", () => {
     }
   });
 
+  it("orders by priority goals first, and keeps Hits a plain count", () => {
+    const d = realData();
+    const vets = sampleVeterans();
+    const skills = [...rosterSparks(d, vets).values()].filter((o) => o.kind === "skill").slice(0, 4);
+    const goals: Goal[] = skills.map((o, i) => ({ kind: "skill", groupId: o.groupId, priority: i === 0 ? 3 : 1, sparkTier: "white" }));
+    const res = optimize(d, vets, [], cfg, goals, [], undefined, 99);
+    for (const l of res.ranked) {
+      expect(l.priorityGoals).toBe(1);
+      expect(l.expected).toBeCloseTo(l.goals.reduce((a, g) => a + g.inherit, 0)); // unweighted
+      expect(l.priorityExpected).toBeCloseTo(l.goals[0].inherit);
+    }
+    const prio = res.ranked.map((l) => l.priorityExpected);
+    expect([...prio].sort((a, b) => b - a)).toEqual(prio);
+  });
+
   it("lists partners for a fixed parent, best first", () => {
     const vets = sampleVeterans();
     const pc = createPlanContext(realData(), cfg, [], []);

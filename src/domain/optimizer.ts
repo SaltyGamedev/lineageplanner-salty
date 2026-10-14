@@ -40,7 +40,7 @@ export function validPair(a: Veteran, b: Veteran): boolean {
 /**
  * How pairs are ordered. Goals can pull in different directions, so the user
  * picks the objective:
- *   hits     – most goals passed on (priority-weighted), the default;
+ *   hits     – most goals passed on, the default;
  *   all      – best chance that every goal is inherited;
  *   affinity – highest lineage affinity.
  */
@@ -49,12 +49,19 @@ export type RankOrder = "hits" | "all" | "affinity";
 /** Aptitude targets are compared on the whole percent the list shows, so ties fall through to the goals. */
 export const aptBucket = (l: Lineage) => (l.aptScore == null ? 0 : Math.round(l.aptScore * 100));
 
-/** Best first: filters met, then aptitude targets, then the chosen objective, then affinity. */
+/**
+ * Best first: filters met, then aptitude targets, then priority (!) goals
+ * (for the goal objectives), then the chosen objective, then affinity.
+ */
 export function compareLineages(x: Lineage, y: Lineage, order: RankOrder = "hits"): number {
   if (x.ok !== y.ok) return x.ok ? -1 : 1;
   const apt = aptBucket(y) - aptBucket(x);
   if (apt !== 0) return apt;
-  const key = (l: Lineage) => (order === "all" ? (l.allInherit ?? 0) : order === "hits" ? (l.score ?? 0) : 0);
+  if (order !== "affinity") {
+    const pr = y.priorityExpected - x.priorityExpected;
+    if (Math.abs(pr) > 1e-12) return pr;
+  }
+  const key = (l: Lineage) => (order === "all" ? (l.allInherit ?? 0) : order === "hits" ? l.expected : 0);
   const s = key(y) - key(x);
   if (Math.abs(s) > 1e-12) return s;
   return y.compat.total - x.compat.total || x.p1.trainedId - y.p1.trainedId;

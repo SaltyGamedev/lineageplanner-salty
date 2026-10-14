@@ -33,7 +33,8 @@ Superseded and not used: the legacy compatibility system (+1 per shared G1/G2/G3
 * **Aptitude targets** (an aptitude grade such as Long S) and **spark filters** are about sparks, not goals. They show in a separate Sparks box.
   * Aptitude targets rank pairs **first**: by the mean chance (low end) of reaching them, rounded to the whole percent shown. Pairs with the same % are ordered by the chosen objective.
   * You pick how pairs are ordered, because goals can conflict:
-    * **Most goals** (default): the priority-weighted mean of the goals' **Inherit** chances, the same as the expected number of goals passed on. A goal marked **!** counts ×3.
+    * **Most goals** (default): the expected number of goals passed on (Σ Inherit %).
+    * Goals marked **!** (priority) come first: pairs are ordered by the expected number of **!** goals passed on, then by the objective. The list shows this in its own **!** column, and Hits stays a plain count.
     * **All goals**: the chance that every goal is inherited.
     * **Affinity**: the lineage total.
   * Without goals, pairs are ranked by affinity.

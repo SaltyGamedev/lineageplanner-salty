@@ -99,7 +99,7 @@ const STEPS: Step[] = [
             skill. The ○/◎/G button picks which version it buys; it only changes this number.
           </li>
           <li><b>★</b>: the portraits show which horses carry it and with how many stars.</li>
-          <li><b>!</b> counts a goal three times when ranking. <b>✕</b> removes it.</li>
+          <li><b>!</b> marks a priority goal: pairs that pass on your ! goals come first (the best-pairs list gets a ! column). <b>✕</b> removes it.</li>
           <li>Click a column header to sort. Click again to reverse, once more to reset.</li>
           <li>Aptitude rows show the grade change, for example <Grade value={7} />→<Grade value={7} /> at start.</li>
         </ul>
@@ -120,7 +120,7 @@ const STEPS: Step[] = [
           <li><b>Expected</b>: goals passed on on average.</li>
         </ul>
         <ul>
-          <li><b>Hits</b>: how many of your goals the pair is expected to pass on, for example 5.1/8. Pairs are ordered by it (goals marked <b>!</b> count more).</li>
+          <li><b>Hits</b>: how many of your goals the pair is expected to pass on, for example 5.1/8. Pairs are ordered by it, after your <b>!</b> goals.</li>
           <li><b>All</b>: the chance that <i>every</i> goal is inherited. With many goals this is small, even for the best pair.</li>
           <li><b>Affinity</b>: the lineage total, with the ◎ ○ △ rank. It breaks ties and drives spark chances.</li>
           <li>Without goals, pairs are simply ordered by affinity.</li>

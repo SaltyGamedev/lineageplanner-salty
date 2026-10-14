@@ -37,11 +37,12 @@ export function Planner(props: Props) {
   const [open, setOpen] = useState<Open>(null);
   const [manual, setManual] = useState<[number, number] | null>(null);
   const [order, setOrder] = useState<RankOrder>("hits");
-  // "Most goals" sorts by priority-weighted hits; show that same number so the column reads in order.
+  // Priority (!) goals get their own column and order pairs before Hits, so Hits stays a plain count.
   const skillGoals = goals.filter((g) => g.kind !== "aptitude");
-  const totalWeight = skillGoals.reduce((a, g) => a + g.priority, 0);
-  const weighted = skillGoals.some((g) => g.priority !== 1);
+  const hasPrio = skillGoals.some((g) => g.priority > 1);
   const hasApt = goals.some((g) => g.kind === "aptitude");
+  // Best-pairs columns: number, pair, [Apt], [!], Hits, All, Affinity.
+  const rankCols = `18px minmax(0, 1fr)${hasApt ? " 40px" : ""}${hasPrio ? " 44px" : ""} 48px 44px 56px`;
   const target = config.targetCardId != null ? data.cards.get(config.targetCardId) : undefined;
   const eff = effectiveConfig(config, data);
   const course = eff.courseId != null ? data.courses.get(eff.courseId) : undefined;
@@ -189,17 +190,16 @@ export function Planner(props: Props) {
               <span className="muted small">{result.pairs} scored{result.filteredOut ? ` · ${result.filteredOut} filtered` : ""}</span>
             </div>
             <div className="seg order-seg" role="group" aria-label="Order pairs by">
-              {([["hits", "Most goals", "Most goals passed on (goals marked ! count more)"], ["all", "All goals", "Best chance that every goal is inherited"], ["affinity", "Affinity", "Highest lineage affinity"]] as const).map(([k, label, title]) => (
+              {([["hits", "Most goals", "Most goals passed on (priority ! goals first)"], ["all", "All goals", "Best chance that every goal is inherited"], ["affinity", "Affinity", "Highest lineage affinity"]] as const).map(([k, label, title]) => (
                 <button key={k} className={order === k ? "on" : ""} title={title} onClick={() => setOrder(k)} disabled={k !== "affinity" && skillGoals.length === 0}>{label}</button>
               ))}
             </div>
-            <div className={`rank-row rank-head ${hasApt ? "with-apt" : ""}`} aria-hidden>
+            <div className="rank-row rank-head" style={{ gridTemplateColumns: rankCols }} aria-hidden>
               <span />
               <span>Pair</span>
               {hasApt && <span className="num" title="Chance to reach your aptitude targets (low end). Pairs are ranked by this first.">Apt</span>}
-              <span className="num" title={weighted ? "Expected goals passed on, weighted: goals marked ! count 3×" : "Expected number of your goals this pair passes on"}>
-                {weighted ? "Score" : "Hits"}
-              </span>
+              {hasPrio && <span className="num" title="Expected number of your priority (!) goals passed on. Pairs are ordered by this before Hits.">!</span>}
+              <span className="num" title="Expected number of your goals this pair passes on">Hits</span>
               <span className="num" title="Chance that every goal is inherited">All</span>
               <span className="num" title="Affinity of the whole lineage (the ◎ ○ △ total shown in game). Higher also raises every spark's chance.">Affinity</span>
             </div>
@@ -208,27 +208,26 @@ export function Planner(props: Props) {
                 const on = l.p1.trainedId === current.p1.trainedId && l.p2.trainedId === current.p2.trainedId;
                 return (
                   <li key={`${l.p1.trainedId}:${l.p2.trainedId}`}>
-                    <button className={`rank-row ${hasApt ? "with-apt" : ""} ${on ? "on" : ""}`} onClick={() => setManual([l.p1.trainedId, l.p2.trainedId])}>
+                    <button className={`rank-row ${on ? "on" : ""}`} style={{ gridTemplateColumns: rankCols }} onClick={() => setManual([l.p1.trainedId, l.p2.trainedId])}>
                       <span className="rank-no">{i + 1}</span>
                       <span className="rank-pair">
-                        {[l.p1, l.p2].map((p) => (
-                          <span key={p.trainedId} className="rank-parent" title={parentTitle(data, p)}>
-                            <span className={`rank-ava ${p.borrowed ? "rental" : ""}`}>
-                              <Portrait data={data} cardId={p.cardId} size={28} />
-                            </span>
-                            <span className="rank-pname">
-                              <span className="rank-cname">{data.charaName(p.charaId)}</span>
+                        <span className="rank-names">{data.charaName(l.p1.charaId)} × {data.charaName(l.p2.charaId)}</span>
+                        <span className="rank-avas">
+                          {[l.p1, l.p2].map((p) => (
+                            <span key={p.trainedId} className="rank-parent" title={parentTitle(data, p)}>
+                              <span className={`rank-ava ${p.borrowed ? "rental" : ""}`}>
+                                <Portrait data={data} cardId={p.cardId} size={24} />
+                              </span>
                               <span className="rank-gps">
                                 {p.parents.map((g, k) => (g ? <Portrait key={k} data={data} cardId={g.cardId} size={16} /> : null))}
                               </span>
                             </span>
-                          </span>
-                        ))}
+                          ))}
+                        </span>
                       </span>
                       {hasApt && <span className="num rank-apt" title="Chance to reach your aptitude targets (low end)">{l.aptScore != null ? pct(l.aptScore) : "–"}</span>}
-                      <span className="num rank-hits" title={weighted ? "Weighted expected goals (! counts 3×)" : "Expected goals passed on"}>
-                        {l.goals.length ? `${((l.score ?? 0) / 100 * totalWeight).toFixed(1)}/${totalWeight}` : "–"}
-                      </span>
+                      {hasPrio && <span className="num rank-prio" title="Expected priority (!) goals passed on">{`${l.priorityExpected.toFixed(1)}/${l.priorityGoals}`}</span>}
+                      <span className="num rank-hits" title="Expected goals passed on">{l.goals.length ? `${l.expected.toFixed(1)}/${l.goals.length}` : "–"}</span>
                       <span className="num rank-all" title="Chance that every goal is inherited">{l.allInherit != null ? pctFine(l.allInherit) : "–"}</span>
                       <span className="num rank-aff" title="Lineage affinity">{RANK_SYMBOL[l.compat.rank]} {l.compat.total}</span>
                     </button>
@@ -499,7 +498,7 @@ function GoalTable({ data, l, style, onPriority, onTier, onRemoveGoal }: GoalTab
             <td>
               <button
                 className={`prio-btn ${r.goal.priority === 3 ? "on" : ""}`}
-                title={r.goal.priority === 3 ? "High priority (counts ×3): click to lower" : "Normal priority: click to count ×3"}
+                title={r.goal.priority === 3 ? "Priority goal: pairs that pass it on come first. Click to unmark." : "Mark as priority: pairs that pass it on come first."}
                 aria-pressed={r.goal.priority === 3}
                 onClick={() => onPriority(r.key, r.goal.priority === 3 ? 1 : 3)}
               >!</button>

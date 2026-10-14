@@ -112,8 +112,11 @@ export interface Lineage {
   ok: boolean;
   /** Mean chance (low end) of reaching the aptitude targets; null without targets. Ranks before the goals. */
   aptScore: number | null;
-  /** Priority-weighted mean of the skill/race goal chances, 0..100; null without goals. Only used to order pairs. */
+  /** Mean Inherit chance of the skill/race goals, 0..100; null without goals. */
   score: number | null;
+  /** Expected number of priority (!) goals passed on, and how many there are. Priority goals order pairs first. */
+  priorityExpected: number;
+  priorityGoals: number;
   /** Expected number of skill/race goals passed on (sum of Inherit chances). */
   expected: number;
   /** Chance that every skill/race goal is inherited (they roll independently); null without goals. */
@@ -267,13 +270,16 @@ export function evaluate(pc: PlanContext, p1: Veteran, p2: Veteran): Lineage {
   // Pink aptitude targets are not "goals": they get their own section and rank first.
   const aptitudes = results.filter((r) => r.goal.kind === "aptitude");
   const goals = results.filter((r) => r.goal.kind !== "aptitude");
-  const weight = goals.reduce((a, r) => a + r.goal.priority, 0);
-  const score = weight > 0 ? (100 * goals.reduce((a, r) => a + r.goal.priority * r.inherit, 0)) / weight : null;
+  const expected = goals.reduce((a, r) => a + r.inherit, 0);
+  const priority = goals.filter((r) => r.goal.priority > 1);
   const withSpark = goals.filter((r) => r.spark != null);
   return {
-    p1, p2, members, compat, affinity, goals, aptitudes, filters, ok: filters.every((f) => f.ok), score,
+    p1, p2, members, compat, affinity, goals, aptitudes, filters, ok: filters.every((f) => f.ok),
+    score: goals.length ? (100 * expected) / goals.length : null,
+    priorityExpected: priority.reduce((a, r) => a + r.inherit, 0),
+    priorityGoals: priority.length,
     aptScore: aptitudes.length ? aptitudes.reduce((a, r) => a + r.inherit, 0) / aptitudes.length : null,
-    expected: goals.reduce((a, r) => a + r.inherit, 0),
+    expected,
     allInherit: goals.length ? goals.reduce((a, r) => a * r.inherit, 1) : null,
     allSpark: withSpark.length ? { chance: withSpark.reduce((a, r) => a * (r.spark as number), 1), goals: withSpark.length } : null,
   };
